@@ -67,6 +67,12 @@ const PRICES := {"pick": 2, "trim": 4, "oil": 2, "reset": 3,
 ## Roughly this share of grown mares pay for hoof care; the rest take it as a favour between
 ## friends. Which ones is fixed per pony, the same in every world.
 const PAYING_SHARE := 65
+## Shod on some hooves but not all four, she'd walk lopsided: she waits for the rest. She gives
+## up when Anon is this far off, or after this long (real seconds), a little hurt.
+const UNEVEN_LEAVE := 9.0
+const UNEVEN_PATIENCE := 300.0
+const UNEVEN_THOUGHT := "Anon only shod some of my hooves and left. I'm walking all lopsided now..."
+const UNEVEN_MEMORY := "Anon put shoes on only some of your hooves and walked off, leaving you lopsided."
 const SND := {
 	"pick": ["res://world/audio/designed/foley/select_01.wav"],
 	"nip": ["res://world/audio/designed/foley/carrot_01.wav", "res://world/audio/designed/foley/carrot_02.wav", "res://world/audio/designed/foley/carrot_03.wav"],
@@ -95,6 +101,8 @@ var mod_id := "mare_care"
 var _session := {}
 ## A lift asked for while she stands up or puts the other hoof down: {pony, leg, until}.
 var _pending := {}
+## Ponies waiting for the rest of their shoes: pony -> msec when she started waiting.
+var _waiting := {}
 var _desk_down := false
 var _desk_hit := {}
 var _hammer_clock := 0.0
@@ -114,7 +122,7 @@ func _ready() -> void:
 	_rng.randomize()
 	add_to_group("interaction_hint_sources")
 	Mods.world_ready.connect(_on_world)
-	Mods.world_closed.connect(func(_g: Node) -> void: _end_session())
+	Mods.world_closed.connect(func(_g: Node) -> void: _end_session(); _waiting.clear())
 	_audio = AudioStreamPlayer3D.new()
 	_audio.max_distance = 8.0
 	add_child(_audio)
@@ -273,7 +281,10 @@ func interaction_hint() -> Dictionary:
 		var record := _record(hit.pony, hit.leg)
 		text = "Click · Ask her to lift her %s hoof" % HOOVES.NAMES[hit.leg]
 		var needs := _needs(record)
-		if not needs.is_empty():
+		var bare := _bare_hooves(hit.pony)
+		if not bare.is_empty() and bare.size() < 4 and not _shod(record):
+			text += "  (she'd like this one shod too, to match)"
+		elif not needs.is_empty():
 			text += "  (needs: %s)" % ", ".join(needs)
 			if _pays(hit.pony): text += " · she pays"
 	else:
@@ -340,6 +351,7 @@ func _physics_process(delta: float) -> void:
 	if game == null: return
 	_try_pending()
 	if not _session.is_empty(): _keep_session(dt)
+	_keep_waiting()
 	if _desk_down: _work_desktop(dt)
 	_sense_vr(game, dt)
 
@@ -493,11 +505,20 @@ func _end_session() -> void:
 	_shoes().fitting(pony, leg, "", [])
 	HOOVES.lower(pony)
 	if owed > 0: _collect(pony, leg, owed)
-	if pony.has_method("set_action_gaze"): pony.call("set_action_gaze", null)
 	var expressions: Variant = pony.get("expressions")
 	if expressions != null and expressions.has_method("release_touch"): expressions.release_touch("mare_care_hoof")
 	var tail: Variant = pony.get("tail_motion")
 	if tail != null and "aside_goal" in tail: tail.aside_goal = 0.0
+	var bare := _bare_hooves(pony)
+	if not bare.is_empty() and bare.size() < 4 and _willing(pony):
+		# Shod on some hooves only: she stays put and waits for the rest (_keep_waiting).
+		if not _waiting.has(pony):
+			_waiting[pony] = Time.get_ticks_msec()
+			_note("%s would like the rest of her hooves shod too" % _display_name(pony))
+		HOOVES.hold_still(pony, true)
+		return
+	_waiting.erase(pony)
+	if pony.has_method("set_action_gaze"): pony.call("set_action_gaze", null)
 
 
 # ---------------------------------------------------------------- the jobs
@@ -619,6 +640,76 @@ func _pull_shoe() -> void:
 	Mods.save_changed()
 
 
+## Her legs with no shoe on (saved shoes only, not one being fitted).
+func _bare_hooves(pony: Node3D) -> Array:
+	var out := []
+	var hooves := CARE.hooves(mod_id, _pony_id(pony))
+	for leg: String in HOOVES.LEGS:
+		if not _shod(hooves.get(leg, {})): out.append(leg)
+	return out
+
+
+## Shoe money waits for the full set (saved, so finishing another day still pays).
+func _add_set_owed(pony: Node3D, amount: int) -> void:
+	var state := Mods.state(mod_id)
+	if not state.get("set_owed") is Dictionary: state["set_owed"] = {}
+	var all: Dictionary = state["set_owed"]
+	var id := _pony_id(pony)
+	all[id] = int(all.get(id, 0)) + amount
+	Mods.save_changed()
+	if _bare_hooves(pony).is_empty():
+		var total := int(all[id])
+		all.erase(id)
+		_waiting.erase(pony)
+		if total > 0: _collect(pony, "", total)
+
+
+## Ponies waiting for the rest of their shoes: done, or given up on.
+func _keep_waiting() -> void:
+	var now := Time.get_ticks_msec()
+	var player := _player_point()
+	for pony: Variant in _waiting.keys():
+		if not is_instance_valid(pony):
+			_waiting.erase(pony); continue
+		if not _session.is_empty() and _session.pony == pony: continue
+		var bare := _bare_hooves(pony)
+		if bare.is_empty() or bare.size() == 4:
+			_stop_waiting(pony); continue
+		var far := player.is_finite() and Vector2(player.x - pony.global_position.x, player.z - pony.global_position.z).length() > UNEVEN_LEAVE
+		if far or float(now - int(_waiting[pony])) / 1000.0 > UNEVEN_PATIENCE or bool(pony.get("sleeping")):
+			_stop_waiting(pony)
+			_left_uneven(pony)
+			continue
+		# Waiting: she watches you.
+		var camera := _camera()
+		if camera != null and pony.has_method("set_action_gaze"): pony.call("set_action_gaze", camera)
+
+
+func _stop_waiting(pony: Node3D) -> void:
+	_waiting.erase(pony)
+	HOOVES.hold_still(pony, false)
+	if pony.has_method("set_action_gaze"): pony.call("set_action_gaze", null)
+
+
+## Anon walked off with her half shod: a little hurt, and she'll remember it.
+func _left_uneven(pony: Node3D) -> void:
+	var id := _pony_id(pony)
+	var game := _game()
+	if id.is_empty() or game == null or game.get("world_context") == null: return
+	var context: Node = game.world_context
+	var impressions: Variant = context.get("impressions")
+	if impressions != null and is_instance_valid(impressions):
+		impressions.commit(id, {"friendship": -1, "mood": "sad", "thought": UNEVEN_THOUGHT}, "mare_care_uneven_%d" % Time.get_ticks_usec())
+	if context.has_method("record"): context.record("mare_care", UNEVEN_MEMORY, [id, "player"], [id, "player"])
+	_note("%s is walking off lopsided, with only some of her hooves shod" % _display_name(pony))
+	print("[mare_care] %s gave up waiting for the rest of her shoes" % id)
+
+
+func _note(text: String) -> void:
+	var inventory := _inventory()
+	if inventory != null: LEDGER.say(inventory, text)
+
+
 ## True when she pays for hoof care: a grown mare, not married to Anon (hoof care is free for a
 ## wife), not a spa client, and one of the mares who pay (PAYING_SHARE of them, fixed per pony).
 func _pays(pony: Node3D) -> bool:
@@ -650,12 +741,12 @@ func _collect(pony: Node3D, leg: String, amount: int) -> void:
 	var why := LEDGER.transfer(game, id, LEDGER.PLAYER, amount, "service", {
 		"pony": pony,
 		"receipt": "mare_care:%s:%s:%d" % [id, leg, Time.get_ticks_usec()],
-		"say": "%s paid you %d bits for hoof care" % [name, amount],
-		"text": "%s paid Anon %d bits for looking after her %s hoof." % [name, amount, HOOVES.NAMES[leg]],
+		"say": ("%s paid you %d bits for hoof care" if not leg.is_empty() else "%s paid you %d bits for her new set of shoes") % [name, amount],
+		"text": ("%s paid Anon %d bits for looking after her %s hoof." % [name, amount, HOOVES.NAMES[leg]]) if not leg.is_empty() else "%s paid Anon %d bits for a full set of horseshoes." % [name, amount],
 		"witnesses": [id, "player"],
 	})
 	if why.is_empty():
-		print("[mare_care] %s paid %d bits for her %s hoof" % [id, amount, HOOVES.NAMES[leg]])
+		print("[mare_care] %s paid %d bits%s" % [id, amount, (" for her %s hoof" % HOOVES.NAMES[leg]) if not leg.is_empty() else " for her set of shoes"])
 	else:
 		print("[mare_care] %s couldn't pay %d bits: %s" % [id, amount, why])
 		var inventory := _inventory()
@@ -682,7 +773,8 @@ func _done(job: String, style := "") -> void:
 	if was_due:
 		var price_key := job
 		if job == "shoe": price_key = "reset" if bool((_session.get("reset_shoe", false))) else "shoe_" + style
-		_session.owed = int(_session.owed) + int(PRICES.get(price_key, 0))
+		if job == "shoe": _add_set_owed(pony, int(PRICES.get(price_key, 0)))
+		else: _session.owed = int(_session.owed) + int(PRICES.get(price_key, 0))
 	CARE.mark(mod_id, record, job)
 	_shoes().refresh(pony)
 	print("[mare_care] %s: %s hoof %s" % [_pony_id(pony), HOOVES.NAMES[_session.leg], JOB_NAMES[job]])
@@ -706,13 +798,13 @@ func _reward(pony: Node3D, job: String, style: String) -> void:
 		var r: Dictionary = hooves.get(leg, {})
 		if CARE.due(r, job) or (job == "shoe" and not _shod(r)): all_four = false
 	if all_four:
-		tags.friendship = 2
-		tags.thought = THOUGHTS[job]
+		tags["friendship"] = 2
+		tags["thought"] = THOUGHTS[job]
 		if bonds != null and bonds.has_method("eligible_for_romance") and bonds.eligible_for_romance(id):
 			var stage := str(bonds.record_for(id).get("stage", "acquaintance"))
 			if int(bonds.interest(id)) >= 25 or stage in ["dating", "engaged", "married"]:
-				tags.romance = 1
-				tags.mood = "happy"
+				tags["romance"] = 1
+				tags["mood"] = "happy"
 		if context.has_method("record"):
 			var memory: String = MEMORIES[job] % MODELS.STYLE_NAMES.get(style, "").to_lower() if job == "shoe" else MEMORIES[job]
 			context.record("mare_care", memory, [id, "player"], [id, "player"])
@@ -924,6 +1016,9 @@ func _sound(kind: String, at: Vector3, volume: float, pitch: float) -> void:
 
 func _exit_tree() -> void:
 	_end_session()
+	for pony: Variant in _waiting.keys():
+		if is_instance_valid(pony): _stop_waiting(pony)
+	_waiting.clear()
 	if is_instance_valid(_desk_item):
 		var model := _visual(_desk_item)
 		if model != null: model.transform = Transform3D.IDENTITY

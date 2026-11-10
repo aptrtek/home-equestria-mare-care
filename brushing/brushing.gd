@@ -499,8 +499,8 @@ func _reward(pony: Node3D, tool: String, seconds: float) -> void:
 	if bonds != null and bonds.eligible_for_romance(id):
 		var stage := str(bonds.record_for(id).get("stage", "acquaintance"))
 		if int(bonds.interest(id)) >= 25 or stage in ["dating", "engaged", "married"]:
-			tags.romance = ROMANCE[tool]
-			tags.mood = "happy"
+			tags["romance"] = ROMANCE[tool]
+			tags["mood"] = "happy"
 	var impressions: Variant = context.get("impressions")
 	if impressions != null and is_instance_valid(impressions):
 		impressions.commit(id, tags, "mare_care_%s_%d" % [tool, Time.get_ticks_usec()])

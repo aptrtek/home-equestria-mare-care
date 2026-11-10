@@ -34,6 +34,12 @@ out, and you can use them on any willing pony.
    - **Hoof oil:** work it in, and the hoof shines for a few minutes.
 3. **Walk away**, or ask for another hoof, and she puts it down.
 
+**Shoe all four.** Once one hoof is shod, she'd walk lopsided until the others are too. She waits
+where she is for you to finish, and the hint on a bare hoof says she'd like it shod to match. If
+you walk off, or keep her waiting more than about five minutes, she gives up and leaves, a
+little hurt, and remembers that you left her lopsided. She'll still pay for the full set
+whenever you finish it.
+
 Her shoes stay on, in the style you chose, wherever she goes. Every pony's hooves are saved
 with your world.
 
@@ -44,7 +50,8 @@ with your world.
 ### Paying for hoof care
 
 Some mares pay you in bits for hoof care, out of their own purse, when they put the hoof down
-again. Each job only counts if the hoof needed it:
+again. Each job only counts if the hoof needed it. New shoes are paid for as a set, once all
+four are on:
 
 | Job | Bits |
 | --- | --- |
