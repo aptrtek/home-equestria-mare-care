@@ -30,6 +30,11 @@ var pony: Node3D
 var _left := {"mane": 0.0, "tail": 0.0}
 ## part -> [[Skeleton3D, bone, local Vector3, local normal], ...]
 var _points := {}
+## part -> glints alive at once (GLINTS when not listed)
+var _count := {}
+var _hair_sampled := false
+## part -> glint size factor (1 when not listed)
+var _size := {}
 var _glints: Array[Dictionary] = []   # {part, point, age, life, size, tint}
 var _mm: MultiMesh
 var _view: MultiMeshInstance3D
@@ -54,6 +59,21 @@ func shine(part: String) -> void:
 	_left[part] = SECONDS
 
 
+## Glints on one bone's part of her body for `seconds` (the farrier's hoof oil: part "hoof_FL" on
+## pony_finger_L), `count` alive at once.
+func shine_bone(part: String, bone_name: String, seconds: float, count := 5, size := 0.35) -> void:
+	_size[part] = size
+	if not _points.has(part):
+		var model: Node = pony.get("_model")
+		var skeleton: Skeleton3D = pony.get("skeleton")
+		if model == null or skeleton == null: return
+		var bone := skeleton.find_bone(bone_name)
+		for node: Node in model.find_children("*", "MeshInstance3D", true, false):
+			if String(node.name) == "MareBody": _add(part, node as MeshInstance3D, skeleton, bone)
+	_left[part] = seconds
+	_count[part] = count
+
+
 func shining(part: String) -> bool:
 	return float(_left.get(part, 0.0)) > 0.0
 
@@ -66,7 +86,7 @@ func _ready() -> void:
 	_mm.transform_format = MultiMesh.TRANSFORM_3D
 	_mm.use_colors = true
 	_mm.physics_interpolation_quality = MultiMesh.INTERP_QUALITY_FAST
-	_mm.instance_count = GLINTS * 2
+	_mm.instance_count = GLINTS * 2 + 24
 	_mm.visible_instance_count = 0
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE
@@ -96,7 +116,7 @@ func _process(delta: float) -> void:
 	if camera == null or camera.global_position.distance_to(pony.global_position) > DRAW_DISTANCE:
 		_mm.visible_instance_count = 0
 		return
-	if _points.is_empty(): _sample()
+	if not _hair_sampled: _hair_sampled = true; _sample()
 	_spawn(camera.global_position)
 	_draw(delta, camera)
 
@@ -111,14 +131,14 @@ func _spawn(eye: Vector3) -> void:
 	for part: String in _left:
 		var list: Array = _points.get(part, [])
 		if list.is_empty(): continue
-		var want := int(round(GLINTS * _strength(part)))
+		var want := int(round(int(_count.get(part, GLINTS)) * _strength(part)))
 		var have := 0
 		for g in _glints:
 			if g.part == part: have += 1
 		# A few at a time, so they twinkle in rather than all appearing at once.
 		for i in mini(want - have, 2):
 			_glints.append({"part": part, "point": _facing(list, eye), "age": 0.0,
-				"life": _rng.randf_range(LIFE.x, LIFE.y), "size": _rng.randf_range(SIZE.x, SIZE.y) * size,
+				"life": _rng.randf_range(LIFE.x, LIFE.y), "size": _rng.randf_range(SIZE.x, SIZE.y) * size * float(_size.get(part, 1.0)),
 				"tint": TINTS[_rng.randi_range(0, TINTS.size() - 1)], "spin": _rng.randf_range(-0.6, 0.6)})
 
 
@@ -180,7 +200,7 @@ func _sample() -> void:
 		for part: String in ["mane", "tail"]:
 			var mi := hair.find_child(prefix + ("DevkitMane" if part == "mane" else "DevkitTail"), true, false) as MeshInstance3D
 			if mi != null: _add(part, mi, hair_skeleton)
-	if _points.is_empty():
+	if not _points.has("mane") and not _points.has("tail"):
 		var model: Node = pony.get("_model")
 		var skeleton: Skeleton3D = pony.get("skeleton")
 		if model != null and skeleton != null:
@@ -188,15 +208,14 @@ func _sample() -> void:
 				var lower := String(node.name).to_lower()
 				var part := "tail" if "tail" in lower else ("mane" if "mane" in lower else "")
 				if not part.is_empty(): _add(part, node as MeshInstance3D, skeleton)
-	if _points.is_empty(): _points["none"] = []   # nothing to sparkle on; don't look again
 
 
-func _add(part: String, mi: MeshInstance3D, skeleton: Skeleton3D) -> void:
+func _add(part: String, mi: MeshInstance3D, skeleton: Skeleton3D, only_bone := -1) -> void:
 	if mi.mesh == null or mi.skin == null: return
 	var skin := mi.skin
 	var total := 0
 	for surface in mi.mesh.get_surface_count(): total += mi.mesh.surface_get_array_len(surface)
-	var every := maxi(1, total / MAX_POINTS)
+	var every := maxi(1, total / MAX_POINTS) if only_bone < 0 else 1
 	var list: Array = _points.get(part, [])
 	for surface in mi.mesh.get_surface_count():
 		var arrays := mi.mesh.surface_get_arrays(surface)
@@ -214,7 +233,7 @@ func _add(part: String, mi: MeshInstance3D, skeleton: Skeleton3D) -> void:
 			if main < 0 or main >= skin.get_bind_count(): continue
 			var bone := skin.get_bind_bone(main)
 			if bone < 0: bone = skeleton.find_bone(skin.get_bind_name(main))
-			if bone < 0: continue
+			if bone < 0 or (only_bone >= 0 and bone != only_bone): continue
 			var bind := skin.get_bind_pose(main)
 			var normal := (bind.basis * normals[v]).normalized() if v < normals.size() else Vector3.ZERO
 			list.append([skeleton, bone, bind * verts[v], normal])

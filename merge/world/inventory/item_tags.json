@@ -1,6 +1,37 @@
 {
 	"tags": {
-		"food:care-mane-brush": ["tool"],
-		"food:care-coat-brush": ["tool"]
+		"food:care-mane-brush": [
+			"tool"
+		],
+		"food:care-coat-brush": [
+			"tool"
+		],
+		"food:care-hoof-pick": [
+			"tool"
+		],
+		"food:care-nippers": [
+			"tool"
+		],
+		"food:care-rasp": [
+			"tool"
+		],
+		"food:care-hammer": [
+			"tool"
+		],
+		"food:care-hoof-oil": [
+			"tool"
+		],
+		"food:care-shoe-steel": [
+			"tool"
+		],
+		"food:care-shoe-silver": [
+			"tool"
+		],
+		"food:care-shoe-gold": [
+			"tool"
+		],
+		"food:care-shoe-rainbow": [
+			"tool"
+		]
 	}
 }

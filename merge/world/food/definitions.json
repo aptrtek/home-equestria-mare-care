@@ -8,7 +8,11 @@
 		"container": "",
 		"description": "A paddle brush (Mare Care). Stroke a pony's mane or tail until it sparkles; on desktop look at her mane or tail and hold the mouse button.",
 		"mass": 0.12,
-		"size_m": [0.068, 0.05, 0.253],
+		"size_m": [
+			0.068,
+			0.05,
+			0.253
+		],
 		"price_bits": 0,
 		"model": "../../../mods/mare_care/brushing/models/mane_brush"
 	},
@@ -21,8 +25,165 @@
 		"container": "",
 		"description": "A soft body brush (Mare Care). Stroke a pony's coat with it; on desktop look at her coat and hold the mouse button.",
 		"mass": 0.15,
-		"size_m": [0.072, 0.063, 0.152],
+		"size_m": [
+			0.072,
+			0.063,
+			0.152
+		],
 		"price_bits": 0,
 		"model": "../../../mods/mare_care/brushing/models/coat_brush"
+	},
+	"care-hoof-pick": {
+		"name": "Hoof Pick",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "A farrier's hoof pick. Ask a pony to lift a hoof by aiming at her leg, then pick the stones and dirt out of it. (Mare Care)",
+		"mass": 0.08,
+		"size_m": [
+			0.03,
+			0.04,
+			0.16
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/hoof_pick"
+	},
+	"care-nippers": {
+		"name": "Hoof Nippers",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "Trim an overgrown hoof wall on a lifted hoof. On a shod hoof they pull the shoe. (Mare Care)",
+		"mass": 0.6,
+		"size_m": [
+			0.04,
+			0.03,
+			0.24
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/nippers"
+	},
+	"care-rasp": {
+		"name": "Hoof Rasp",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "Levels a lifted hoof after trimming. (Mare Care)",
+		"mass": 0.4,
+		"size_m": [
+			0.036,
+			0.03,
+			0.27
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/rasp"
+	},
+	"care-hammer": {
+		"name": "Farrier's Hammer",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "Drives the nails that hold a horseshoe on, and resets loose shoes. (Mare Care)",
+		"mass": 0.5,
+		"size_m": [
+			0.026,
+			0.07,
+			0.24
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/hammer"
+	},
+	"care-hoof-oil": {
+		"name": "Hoof Oil",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "Work it into a lifted hoof and it shines. (Mare Care)",
+		"mass": 0.2,
+		"size_m": [
+			0.05,
+			0.05,
+			0.18
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/hoof_oil"
+	},
+	"care-shoe-steel": {
+		"name": "Steel Horseshoes",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "A set of steel horseshoes. Fit one to a lifted, trimmed hoof, then nail it on with the farrier's hammer. (Mare Care)",
+		"mass": 0.3,
+		"size_m": [
+			0.11,
+			0.01,
+			0.12
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/shoe_steel"
+	},
+	"care-shoe-silver": {
+		"name": "Silver Horseshoes",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "A set of silver horseshoes. Fit one to a lifted, trimmed hoof, then nail it on with the farrier's hammer. (Mare Care)",
+		"mass": 0.3,
+		"size_m": [
+			0.11,
+			0.01,
+			0.12
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/shoe_silver"
+	},
+	"care-shoe-gold": {
+		"name": "Gold Horseshoes",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "A set of gold horseshoes. Fit one to a lifted, trimmed hoof, then nail it on with the farrier's hammer. (Mare Care)",
+		"mass": 0.3,
+		"size_m": [
+			0.11,
+			0.01,
+			0.12
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/shoe_gold"
+	},
+	"care-shoe-rainbow": {
+		"name": "Rainbow Horseshoes",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "A set of rainbow horseshoes. Fit one to a lifted, trimmed hoof, then nail it on with the farrier's hammer. (Mare Care)",
+		"mass": 0.3,
+		"size_m": [
+			0.11,
+			0.01,
+			0.12
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/shoe_rainbow"
 	}
 }

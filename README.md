@@ -5,8 +5,67 @@ look after your mare.
 
 Built for game version `0.3.0-maredev`. Works on desktop and in VR.
 
-> **Work in progress.** This first piece is brushing. Farrier work, tooth brushing and bathing are
-> next.
+> **Work in progress.** Farrier work and brushing are in. Tooth brushing and bathing are next.
+
+## Farrier
+
+The first time you load a world with the mod on, a farrier's kit appears in your briefcase: a
+**Hoof Pick**, **Hoof Nippers**, a **Hoof Rasp**, a **Farrier's Hammer**, **Hoof Oil**, and
+horseshoes in four styles: **Steel**, **Silver**, **Gold** and **Rainbow**. The tools never run
+out, and you can use them on any willing pony.
+
+1. **Ask for a hoof.** Hold any farrier tool and look at one of her legs, then click (desktop),
+   or touch the leg with the tool (VR). She lifts that hoof for you: a front hoof folds back at
+   the knee, and a back hoof lifts out behind her with the sole facing you. She stands still while
+   it's up.
+2. **Work the hoof** with the tool in hand. On desktop, look at the hoof and hold the mouse
+   button; the hint under the crosshair says what the tool will do and how far along it is.
+   - **Hoof pick:** when picking is due, stones and packed dirt sit in the sole. Pick each one
+     out and it drops to the ground.
+   - **Nippers, then rasp:** trim the hoof wall with the nippers, then level it with the rasp.
+     On a shod hoof, the nippers pull the shoe off first.
+   - **Horseshoe:** fit one to a bare hoof. If the hoof needs a trim, trim it first.
+   - **Hammer:** drive in all six nails, one click per nail. A shoe that has worked loose is
+     re-nailed the same way.
+   - **Hoof oil:** work it in, and the hoof shines for a few minutes.
+3. **Walk away**, or ask for another hoof, and she puts it down.
+
+Her shoes stay on, in the style you chose, wherever she goes. Every pony's hooves are saved
+with your world.
+
+### Upkeep
+
+Hooves need care again over time. A hoof that's due shows it in the hint when you look at her
+leg (for example, "needs: picking, a trim, oil"). A shoe that's due for a reset sits a little
+crooked, with its nail heads sticking out.
+
+By default, every job comes due again after **7 in-game days**. To change that, edit
+`settings.cfg` in the mod's data folder. The mod creates it the first time it runs:
+
+| System | File |
+| --- | --- |
+| Windows | `%APPDATA%\home-equestria-public\mods\data\mare_care\settings.cfg` |
+| Linux | `~/.local/share/home-equestria-public/mods/data/mare_care/settings.cfg` |
+
+```ini
+[upkeep]
+pick_days=7.0
+trim_days=7.0
+shoe_days=7.0
+oil_days=7.0
+```
+
+Set a value to `0` to turn that job's upkeep off: once it's done, it stays done. Changes apply
+the next time you start the game.
+
+### What it does for her
+
+Doing a job on a hoof that needed it gains a little friendship. Once all four of her hooves have
+had it, she gains more, plus love if she's an adult who is already fond of you, and she remembers
+it, so she can bring it up in conversation.
+
+A pony who is angry with you or has asked for space won't lift a hoof. Neither will sleeping
+ponies or ponies at the spa.
 
 ## Brushing
 
@@ -32,7 +91,6 @@ A pony who is angry with you or has asked for space turns away. Sleeping ponies 
 
 ## Coming next
 
-- **Farrier:** hoof care and horseshoes.
 - **Tooth brushing**
 - **Bathing**
 
@@ -43,7 +101,8 @@ A pony who is angry with you or has asked for space turns away. Sleeping ponies 
   brush strokes, the brush models and the princess hair handling. Thank you, modChad! Their mod
   also does wing preening, which this mod leaves to theirs.
 - **Brushing sounds:** modChad's own recordings, from the Grooming mod.
-- **Sparkles:** made for this mod.
+- **Sparkles, farrier tools and horseshoes:** made for this mod.
+- **Farrier sounds:** the game's own foley (metal, crunch, rasp and cloth sounds).
 - **Contented sigh:** the game's own pony breath sounds.
 
 This is a free fan mod.
@@ -72,4 +131,8 @@ godot --xr-mode off --path <project> -- --mod-src mare_care
 - `main.gd`: the entry script. It adds each kind of care as its own child node.
 - `brushing/`: the brushes, adapted from the Grooming mod, plus `sparkle.gd` for the glints on a
   freshly brushed mane or tail.
-- `merge/world/food/definitions.json`: the brushes as non-edible briefcase items.
+- `farrier/`: the farrier. `farrier.gd` runs the jobs, `hooves.gd` finds her soles and lifts
+  her hooves, `shoes.gd` keeps the shoes on, `hoof_care.gd` holds what was done and when, plus
+  the upkeep settings, and `models.gd` builds the tools and shoes. To regenerate the tool models:
+  `godot --headless --xr-mode off --path <project> --script res://mods/mare_care/farrier/tools/make_farrier_models.gd`.
+- `merge/world/food/definitions.json`: the brushes and farrier tools as non-edible briefcase items.

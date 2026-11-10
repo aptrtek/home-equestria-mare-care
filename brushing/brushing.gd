@@ -109,7 +109,7 @@ func _on_world(game: Node) -> void:
 	var mane: int = store.grant(MANE_BRUSH)
 	var coat: int = store.grant(COAT_BRUSH)
 	if mane >= 0 and coat >= 0:
-		state.granted_brushes = true
+		state["granted_brushes"] = true
 		Mods.save_changed()
 		print("[mare_care] brushes added to the briefcase")
 	else:
@@ -484,14 +484,14 @@ func _reward(pony: Node3D, tool: String, seconds: float) -> void:
 	var game := _game()
 	if id.is_empty() or game == null or game.get("world_context") == null: return
 	var state := Mods.state(mod_id)
-	if not state.has("paid"): state.paid = {}
+	if not state.has("paid"): state["paid"] = {}
 	var key := id + ":" + tool
 	var now := Time.get_unix_time_from_system()
 	var expressions: Variant = pony.get("expressions")
 	if expressions != null and expressions.has_method("fluster"): expressions.fluster(1.0)
 	_sigh(pony)
-	if now - float((state.paid as Dictionary).get(key, 0.0)) < COOLDOWN: return
-	state.paid[key] = now
+	if now - float((state["paid"] as Dictionary).get(key, 0.0)) < COOLDOWN: return
+	state["paid"][key] = now
 	Mods.save_changed()
 	var context: Node = game.world_context
 	var bonds := _bonds()
