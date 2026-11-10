@@ -247,20 +247,36 @@ func _show_rim(pony: Node3D, skeleton: Skeleton3D, leg: String, on: bool) -> voi
 	rim.name = "Rim"
 	rim.mesh = MODELS.rim_mesh(float(row.width) * 1.02, float(row.length) * 1.02, float(row.width) * RIM_DEPTH, float(row.width) * RIM_WALL)
 	var m := (_frog_mat(pony) as StandardMaterial3D).duplicate() as StandardMaterial3D
-	m.albedo_color = m.albedo_color.darkened(0.12)
+	m.vertex_color_use_as_albedo = false
+	m.albedo_color = _coat(pony).darkened(0.08)
 	rim.material_override = m
 	rim.transform = row.local
 	attachment.add_child(rim)
+	var sole := MeshInstance3D.new()
+	sole.name = "Sole"
+	sole.mesh = MODELS.sole_mesh(float(row.width) * 1.02, float(row.length) * 1.02, float(row.width) * RIM_WALL)
+	var sm := (_frog_mat(pony) as StandardMaterial3D).duplicate() as StandardMaterial3D
+	sm.vertex_color_use_as_albedo = false
+	sm.albedo_color = _coat(pony).darkened(0.32)
+	sole.material_override = sm
+	sole.transform = row.local
+	attachment.add_child(sole)
+
+
+func _coat(pony: Node3D) -> Color:
+	var feathers: Script = load("res://world/minigames/spa/spa_feathers.gd")
+	if feathers != null and feathers.has_method("coat_of"): return feathers.call("coat_of", pony)
+	return Color(0.8, 0.7, 0.6)
 
 
 func _frog_mat(pony: Node3D) -> Material:
-	var coat := Color(0.8, 0.7, 0.6)
-	var feathers: Script = load("res://world/minigames/spa/spa_feathers.gd")
-	if feathers != null and feathers.has_method("coat_of"): coat = feathers.call("coat_of", pony)
+	var coat := _coat(pony)
 	var key := coat.to_html()
 	if not _frog_material.has(key):
 		var m := StandardMaterial3D.new()
-		m.albedo_color = coat.darkened(0.18).lerp(Color(0.85, 0.55, 0.6), 0.12)
+		# The frog: a touch lighter and warmer than her coat; its grooves come from vertex colour.
+		m.albedo_color = coat.lightened(0.08).lerp(Color(0.95, 0.75, 0.75), 0.15)
+		m.vertex_color_use_as_albedo = true
 		m.roughness = 0.85
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_frog_material[key] = m

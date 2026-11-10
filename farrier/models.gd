@@ -202,52 +202,82 @@ static func _box(size: Vector3) -> BoxMesh:
 # ---------------------------------------------------------------- the frog
 
 ## The frog: the V-shaped pad on the underside of a hoof, in the sole frame (+Y into the hoof,
-## -Z toward the toe), standing out below the sole. Its point reaches toward the middle of the
-## sole, it widens back to two rounded heel bulbs, and a groove runs down its middle (the central
-## sulcus). Built on its own outline (u from the point to the heels, v across), so its edge is
-## smooth and meets the sole at nothing.
+## -Z toward the toe), standing out below the sole. Two rounded lobes side by side with a deep
+## cleft between them (the central sulcus), joined into one point toward the toe and ending at the
+## heels in two round bulbs. Vertex colours darken its edges and the cleft, the grooves that make a
+## frog read as a frog under cel shading (material: vertex colour times the frog colour).
 static func frog_mesh(width: float, length: float) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var nu := 24
-	var nv := 16
-	var apex_z := -0.24 * length
+	var nu := 30
+	var nv := 24
+	var apex_z := -0.26 * length
 	# The heels end just inside the hoof wall's rim (shoes.gd RIM_WALL).
-	var heel_z := 0.5 * length - 0.08 * width
-	var thick := 0.05 * width
-	var points := []
+	var heel_z := 0.5 * length - 0.07 * width
+	var thick := 0.075 * width
+	var rows := []
 	for iu in nu + 1:
 		var u := float(iu) / nu
 		var row := []
 		for iv in nv + 1:
 			var v := lerpf(-1.0, 1.0, float(iv) / nv)
 			row.append(_frog_point(u, v, apex_z, heel_z, width, thick))
-		points.append(row)
+		rows.append(row)
 	for iu in nu:
 		for iv in nv:
-			var a: Vector3 = points[iu][iv]; var b: Vector3 = points[iu][iv + 1]
-			var c: Vector3 = points[iu + 1][iv + 1]; var d: Vector3 = points[iu + 1][iv]
-			for q: Vector3 in [a, b, c, a, c, d]: st.add_vertex(q)
+			var quad := [rows[iu][iv], rows[iu][iv + 1], rows[iu + 1][iv + 1], rows[iu + 1][iv]]
+			for k: int in [0, 1, 2, 0, 2, 3]:
+				st.set_color(quad[k][1])
+				st.add_vertex(quad[k][0])
 	st.index()
 	st.generate_normals()
 	return st.commit()
 
 
-## A point on the frog: u 0 at its point, 1 at the heels; v -1..1 across.
-static func _frog_point(u: float, v: float, apex_z: float, heel_z: float, width: float, thick: float) -> Vector3:
-	# Half-width: a narrow point, a straight-sided wedge, swelling into the heel bulbs.
-	var half := width * (0.03 + 0.24 * pow(u, 0.9) + 0.06 * smoothstep(0.7, 1.0, u))
-	var z := lerpf(apex_z, heel_z, u)
+## [point, shade] on the frog: u 0 at its point, 1 at the heels; v -1..1 across.
+static func _frog_point(u: float, v: float, apex_z: float, heel_z: float, width: float, thick: float) -> Array:
+	var side := absf(v)
+	# Half-width: a narrow point widening steadily to broad heels.
+	var half := width * (0.035 + 0.27 * pow(u, 0.75))
+	# Each lobe ends in a round bulb: the back edge is shortest at the cleft and the outside.
+	var bulb := width * 0.09
+	var lobe := clampf((side - 0.5) / 0.5, -1.0, 1.0)
+	var end_z := heel_z - bulb * (1.0 - sqrt(maxf(0.0, 1.0 - lobe * lobe)))
+	var z := lerpf(apex_z, end_z, u)
 	var x := v * half
-	# Height: rounded across (zero at the edges), thinning to nothing at the point and the heels.
-	var across := sqrt(maxf(0.0, 1.0 - v * v))
-	var along := smoothstep(0.0, 0.25, u) * (1.0 - smoothstep(0.93, 1.0, u))
-	var h := thick * across * along * lerpf(0.6, 1.0, u)
-	# Each heel bulb swells a little more.
-	h += thick * 0.3 * smoothstep(0.65, 0.92, u) * (1.0 - smoothstep(0.92, 1.0, u)) * exp(-pow((absf(v) - 0.55) / 0.3, 2.0))
-	# The central groove, deepening toward the heels.
-	h *= 1.0 - 0.7 * exp(-pow(v / 0.14, 2.0)) * smoothstep(0.3, 0.7, u)
-	return Vector3(x, -h, z)
+	# Across: one rounded ridge at the point, splitting into two lobes with a cleft between them.
+	var split := smoothstep(0.15, 0.5, u)
+	var one := sqrt(maxf(0.0, 1.0 - v * v))
+	var two := sqrt(maxf(0.0, sin(PI * side)))
+	var across := lerpf(one, two, split)
+	var along := smoothstep(0.0, 0.18, u) * sqrt(maxf(0.0, 1.0 - pow(u, 8.0)))
+	var h := thick * across * along * lerpf(0.55, 1.0, u)
+	# The grooves: dark along the frog's edges (where the collateral grooves run) and down the cleft.
+	var shade := 1.0
+	shade -= 0.45 * smoothstep(0.72, 1.0, side)
+	shade -= 0.5 * (1.0 - smoothstep(0.0, 0.16, side)) * split
+	shade -= 0.3 * (1.0 - smoothstep(0.0, 0.12, u))
+	var c := clampf(shade, 0.35, 1.0)
+	return [Vector3(x, -h - 0.0015, z), Color(c, c, c)]
+
+
+## The sole inside the hoof wall: a slightly domed oval just below the body's own sole, a shade
+## darker than the frog so the frog stands out on it.
+static func sole_mesh(width: float, length: float, wall: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 48
+	var rx := width * 0.5 - wall * 0.8
+	var rz := length * 0.5 - wall * 0.8
+	var centre := Vector3(0, -0.0008, 0)
+	for i in n:
+		var a0 := float(i) / n * TAU
+		var a1 := float(i + 1) / n * TAU
+		var p0 := Vector3(cos(a0) * rx, -0.0008, sin(a0) * rz)
+		var p1 := Vector3(cos(a1) * rx, -0.0008, sin(a1) * rz)
+		for q: Vector3 in [centre, p1, p0]: st.add_vertex(q)
+	st.generate_normals()
+	return st.commit()
 
 
 ## The hoof wall's bearing edge around the sole: a rim `depth` deep standing out below the sole (so
