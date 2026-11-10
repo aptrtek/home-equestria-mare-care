@@ -4,6 +4,7 @@ extends Node
 ## Each kind of care is its own child node:
 ##   Brushing (brushing/): mane, tail and coat brushes, built on modChad's Grooming mod; a freshly
 ##     brushed mane or tail sparkles.
+##   SettingsTab (ui/): Mare Care's page in Settings (hoof model, upkeep, payment, sparkle).
 ##   Farrier (farrier/): hoof pick, nippers and rasp, horseshoes and hoof oil. Shoes (farrier/shoes.gd)
 ##     keeps every shod pony's shoes on her hooves.
 ## Still to come: tooth brushing and bathing.
@@ -13,6 +14,8 @@ const BRUSHING := preload("res://mods/mare_care/brushing/brushing.gd")
 const SHOES := preload("res://mods/mare_care/farrier/shoes.gd")
 const FARRIER := preload("res://mods/mare_care/farrier/farrier.gd")
 const CARE := preload("res://mods/mare_care/farrier/hoof_care.gd")
+const SETTINGS_TAB := preload("res://mods/mare_care/ui/settings_tab.gd")
+const SPA_CARE := preload("res://mods/mare_care/farrier/spa_care.gd")
 
 
 func _ready() -> void:
@@ -21,6 +24,8 @@ func _ready() -> void:
 	_add("Brushing", BRUSHING)
 	_add("Shoes", SHOES)
 	_add("Farrier", FARRIER)
+	_add("SpaCare", SPA_CARE)
+	_add("SettingsTab", SETTINGS_TAB)
 
 
 func _add(node_name: String, script: Script) -> Node:

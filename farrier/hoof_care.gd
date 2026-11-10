@@ -1,14 +1,17 @@
 extends RefCounted
-## What each pony's hooves have had done and when, and when they need it again.
+## What each pony's hooves have had done and when, and when they need it again, plus the mod's
+## settings.
 ##
 ## Saved in the world save (Mods.state("mare_care").hooves):
 ##   {pony_id: {leg: {"picked": day, "trimmed": day, "oiled": day, "shod": day, "shoe": style}}}
 ## Days are in-game days (TimeOfDay.day + hours / 24). A hoof with no record has never been done.
 ##
-## How often each job comes due again is the player's choice: settings.cfg in the mod's data
-## folder (Mods.data_folder("mare_care")), written with the defaults the first time:
+## The settings live in settings.cfg in the mod's data folder (Mods.data_folder("mare_care")). The
+## Settings > Mare Care page edits them; the file can be edited by hand too (applies on restart).
 ##   [upkeep]
-##   pick_days=7.0    clean the hoof out again
+##   hooves_get_dirty=true   false: hooves never need picking, trimming, oiling or shoe resets
+##   spa_care=true    Aloe and Lotus's spa also cleans a client's hooves (farrier/spa_care.gd)
+##   pick_days=7.0    how long until a cleaned hoof is dirty again
 ##   trim_days=7.0    trim and rasp again
 ##   shoe_days=7.0    reset the shoes (re-nail them)
 ##   oil_days=7.0     oil again
@@ -16,44 +19,93 @@ extends RefCounted
 ##   [pay]
 ##   enabled=true     some mares pay in bits for hoof care (never a wife)
 ##   [hooves]
-##   show_frog=true   the frog on the underside of a lifted hoof
+##   model="detailed" the hoof model: "original" (the game's own) or "detailed" (rim, sole, frog)
+##   show_frog=true   the frog on the underside of a lifted hoof (detailed model only)
+##   [brushing]
+##   sparkle=true     a freshly brushed mane or tail sparkles
+##   sparkle_minutes=10.0   for how long
 
 const SETTINGS := "settings.cfg"
 const JOBS := ["pick", "trim", "shoe", "oil"]
 const DEFAULT_DAYS := 7.0
 const STAMP := {"pick": "picked", "trim": "trimmed", "shoe": "shod", "oil": "oiled"}
+const MODELS := ["original", "detailed"]
+const DEFAULT_MODEL := "detailed"
+const DEFAULT_SPARKLE_MINUTES := 10.0
 
 static var _days := {}
+static var dirt_enabled := true
+static var spa_care := true
 static var pay_enabled := true
 static var show_frog := true
+static var hoof_model := DEFAULT_MODEL
+static var sparkle_on := true
+static var sparkle_minutes := DEFAULT_SPARKLE_MINUTES
+
+
+static func _path(mod_id: String) -> String:
+	return Mods.data_folder(mod_id).path_join(SETTINGS)
 
 
 static func load_settings(mod_id: String) -> void:
-	var path := Mods.data_folder(mod_id).path_join(SETTINGS)
+	var path := _path(mod_id)
 	var config := ConfigFile.new()
 	var loaded := config.load(path) == OK
-	var changed := not loaded
 	for job: String in JOBS:
-		var key := job + "_days"
-		if not config.has_section_key("upkeep", key):
-			config.set_value("upkeep", key, DEFAULT_DAYS)
-			changed = true
-		_days[job] = maxf(0.0, float(config.get_value("upkeep", key, DEFAULT_DAYS)))
-	if not config.has_section_key("pay", "enabled"):
-		config.set_value("pay", "enabled", true)
-		changed = true
+		_days[job] = maxf(0.0, float(config.get_value("upkeep", job + "_days", DEFAULT_DAYS)))
+	dirt_enabled = bool(config.get_value("upkeep", "hooves_get_dirty", true))
+	spa_care = bool(config.get_value("upkeep", "spa_care", true))
 	pay_enabled = bool(config.get_value("pay", "enabled", true))
-	if not config.has_section_key("hooves", "show_frog"):
-		config.set_value("hooves", "show_frog", true)
-		changed = true
 	show_frog = bool(config.get_value("hooves", "show_frog", true))
-	if changed:
-		config.save(path)
-	print("[mare_care] hoof upkeep (in-game days, 0 = never): %s  (%s)" % [str(_days), ProjectSettings.globalize_path(path)])
+	var model := str(config.get_value("hooves", "model", DEFAULT_MODEL))
+	hoof_model = model if model in MODELS else DEFAULT_MODEL
+	sparkle_on = bool(config.get_value("brushing", "sparkle", true))
+	sparkle_minutes = clampf(float(config.get_value("brushing", "sparkle_minutes", DEFAULT_SPARKLE_MINUTES)), 1.0, 60.0)
+	if not loaded:
+		save_settings(mod_id)
+	print("[mare_care] settings: hooves get dirty %s, upkeep days %s, pay %s, hoof model %s, frog %s, sparkle %s (%s min)  (%s)" % [
+		dirt_enabled, str(_days), pay_enabled, hoof_model, show_frog, sparkle_on, sparkle_minutes, ProjectSettings.globalize_path(path)])
+
+
+## Writes every setting back to settings.cfg.
+static func save_settings(mod_id: String) -> void:
+	var config := ConfigFile.new()
+	for job: String in JOBS:
+		config.set_value("upkeep", job + "_days", days(job))
+	config.set_value("upkeep", "hooves_get_dirty", dirt_enabled)
+	config.set_value("upkeep", "spa_care", spa_care)
+	config.set_value("pay", "enabled", pay_enabled)
+	config.set_value("hooves", "model", hoof_model)
+	config.set_value("hooves", "show_frog", show_frog)
+	config.set_value("brushing", "sparkle", sparkle_on)
+	config.set_value("brushing", "sparkle_minutes", sparkle_minutes)
+	config.save(_path(mod_id))
+
+
+static func reset_settings(mod_id: String) -> void:
+	for job: String in JOBS:
+		_days[job] = DEFAULT_DAYS
+	dirt_enabled = true
+	spa_care = true
+	pay_enabled = true
+	show_frog = true
+	hoof_model = DEFAULT_MODEL
+	sparkle_on = true
+	sparkle_minutes = DEFAULT_SPARKLE_MINUTES
+	save_settings(mod_id)
+
+
+static func set_days(job: String, value: float) -> void:
+	_days[job] = maxf(0.0, value)
 
 
 static func days(job: String) -> float:
 	return float(_days.get(job, DEFAULT_DAYS))
+
+
+## True when the hoof model draws the underside (rim, sole, frog).
+static func detailed() -> bool:
+	return hoof_model == "detailed"
 
 
 static func now() -> float:
@@ -78,6 +130,7 @@ static func hoof(mod_id: String, pony_id: String, leg: String) -> Dictionary:
 ## True when `job` is due on this hoof: never done, or done longer ago than its upkeep.
 ## "shoe" is due only for a shod hoof (its shoe has worked loose); a bare hoof is never due.
 static func due(record: Dictionary, job: String) -> bool:
+	if not dirt_enabled: return false
 	var stamp: String = STAMP[job]
 	if job == "shoe" and str(record.get("shoe", "")).is_empty(): return false
 	if not record.has(stamp): return true

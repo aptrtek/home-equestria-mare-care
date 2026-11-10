@@ -90,14 +90,45 @@ About two in three grown mares pay. The rest take it as a favour between friends
 ones they are stays the same in every world. Hoof care is always free for your wife, and fillies
 never pay. A mare who's short of bits just thanks you instead.
 
-### Upkeep
+### Settings
 
-Hooves need care again over time. A hoof that's due shows it in the hint when you look at her
-leg (for example, "needs: picking, a trim, oil"). A shoe that's due for a reset sits a little
-crooked, with its nail heads sticking out.
+**Settings > Mare Care** in the game (under Add-ons) has everything below. Changes apply right
+away and are saved for next time.
 
-By default, every job comes due again after **7 in-game days**. To change that, edit
-`settings.cfg` in the mod's data folder. The mod creates it the first time it runs:
+- **Hoof model:** choose how a lifted hoof looks from below, with a thumbnail of each.
+  **Original** is the game's own plain sole. **Detailed** adds the wall's rim, a darker sole and
+  the frog, and shoes sit on the rim. More models can be added later.
+- **Show the frog:** switch the frog off if you'd rather not see it (Detailed model only).
+- **Hooves get dirty:** switch this off and hooves never need picking, trimming or oiling, and
+  shoes never work loose. The tools, shoes, jewellery and hoof models all still work, so you can
+  keep just the horseshoes and the new hooves.
+- **The spa cares for hooves:** see below.
+- **How long until care is due again:** one slider each for dirt building up, a trim wearing
+  off, shoes working loose and the oil wearing off, from every day to every 30 days, or never
+  again (once done, it stays done). These are in-game days. The default is 7.
+- **Mares pay for hoof care**, and **sparkle after brushing** with how long it lasts.
+- **Reset to defaults.**
+
+When a job comes due the hint on her leg says so (for example "needs: picking, a trim, oil"), and
+a shoe that is due sits a little crooked, with its nail heads sticking out.
+
+### The spa
+
+Hooves don't depend on you alone. Aloe and Lotus's spa looks after them too:
+
+- when a client's front hooves are filed at the footbath, those hooves are cleaned out and
+  trimmed;
+- when her back hooves are done on the massage table, so are those, and they count as massaged;
+- when a mare finishes a whole visit, all four hooves are cleaned out, trimmed and oiled, whoever
+  held the file.
+
+The upkeep clocks start again exactly as if you had done it. Switch it off in the settings if you
+like.
+
+### The settings file
+
+The page edits `settings.cfg` in the mod's data folder, which can be edited by hand too (it
+applies the next time the game starts):
 
 | System | File |
 | --- | --- |
@@ -106,6 +137,8 @@ By default, every job comes due again after **7 in-game days**. To change that, 
 
 ```ini
 [upkeep]
+hooves_get_dirty=true
+spa_care=true
 pick_days=7.0
 trim_days=7.0
 shoe_days=7.0
@@ -115,13 +148,13 @@ oil_days=7.0
 enabled=true
 
 [hooves]
+model="detailed"
 show_frog=true
-```
 
-Set a value to `0` to turn that job's upkeep off: once it's done, it stays done. Set
-`enabled=false` under `[pay]` to make hoof care free for everyone, and `show_frog=false` under
-`[hooves]` to hide the frog. Changes apply the next time
-you start the game.
+[brushing]
+sparkle=true
+sparkle_minutes=10.0
+```
 
 ### What it does for her
 
@@ -204,8 +237,10 @@ godot --xr-mode off --path <project> -- --mod-src mare_care
 - `main.gd`: the entry script. It adds each kind of care as its own child node.
 - `brushing/`: the brushes, adapted from the Grooming mod, plus `sparkle.gd` for the glints on a
   freshly brushed mane or tail.
+- `ui/`: the Settings page (`settings_tab.gd`) and the list of hoof models with their
+  thumbnails (`hoof_models.gd`, `thumbs/`).
 - `farrier/`: the farrier. `farrier.gd` runs the jobs, `hooves.gd` finds her soles and lifts
   her hooves, `shoes.gd` keeps the shoes on, `hoof_care.gd` holds what was done and when, plus
-  the upkeep settings, and `models.gd` builds the tools and shoes. To regenerate the tool models:
+  the settings, `spa_care.gd` listens to the spa, and `models.gd` builds the tools and shoes. To regenerate the tool models:
   `godot --headless --xr-mode off --path <project> --script res://mods/mare_care/farrier/tools/make_farrier_models.gd`.
 - `merge/world/food/definitions.json`: the brushes and farrier tools as non-edible briefcase items.

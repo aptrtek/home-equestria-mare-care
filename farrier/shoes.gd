@@ -86,8 +86,8 @@ func refresh(pony: Node3D) -> void:
 		_show(pony, skeleton, leg, want)
 		_show_jewels(pony, skeleton, leg, str((record.get(leg, {}) as Dictionary).get("jewel", "")))
 		var up := bool((_frogs.get(pony, {}) as Dictionary).get(leg, false))
-		_show_frog(pony, skeleton, leg, CARE.show_frog and up)
-		_show_rim(pony, skeleton, leg, up)
+		_show_frog(pony, skeleton, leg, CARE.detailed() and CARE.show_frog and up)
+		_show_rim(pony, skeleton, leg, CARE.detailed() and up)
 
 
 func _show(pony: Node3D, skeleton: Skeleton3D, leg: String, want: Dictionary) -> void:
@@ -95,7 +95,7 @@ func _show(pony: Node3D, skeleton: Skeleton3D, leg: String, want: Dictionary) ->
 	if want.is_empty():
 		if node != null: node.queue_free()
 		return
-	var lifted := bool((_frogs.get(pony, {}) as Dictionary).get(leg, false))
+	var lifted := bool((_frogs.get(pony, {}) as Dictionary).get(leg, false)) and CARE.detailed()
 	var key := "%s|%s|%s|%s" % [want.style, str(want.nails), str(want.loose), str(lifted)]
 	if node != null and str(node.get_meta("key", "")) == key: return
 	var soles := HOOVES.soles(pony)

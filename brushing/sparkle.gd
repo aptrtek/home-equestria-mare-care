@@ -12,7 +12,8 @@ extends Node3D
 ## One Sparkle node per pony, a child of her. main.gd / brushing.gd call shine("mane" or "tail").
 
 ## Seconds a finished brushing keeps the hair sparkling, and how long the last of it fades.
-const SECONDS := 600.0
+const CARE := preload("res://mods/mare_care/farrier/hoof_care.gd")
+## Settings > Mare Care sets the length (CARE.sparkle_minutes) and whether it happens at all.
 const FADE := 180.0
 ## Glints alive at once on a fully sparkling mane (a tail gets the same).
 const GLINTS := 18
@@ -56,7 +57,8 @@ static func of(who: Node3D) -> Node:
 
 ## Start (or top up) the sparkle on her "mane" or "tail".
 func shine(part: String) -> void:
-	_left[part] = SECONDS
+	if not CARE.sparkle_on: return
+	_left[part] = CARE.sparkle_minutes * 60.0
 
 
 ## Glints on one bone's part of her body for `seconds` (the farrier's hoof oil: part "hoof_FL" on
@@ -123,7 +125,7 @@ func _process(delta: float) -> void:
 
 ## How strongly a part sparkles now: 1 for most of SECONDS, easing to 0 over the last FADE.
 func _strength(part: String) -> float:
-	return clampf(float(_left.get(part, 0.0)) / FADE, 0.0, 1.0)
+	return clampf(float(_left.get(part, 0.0)) / minf(FADE, CARE.sparkle_minutes * 60.0 * 0.3), 0.0, 1.0)
 
 
 func _spawn(eye: Vector3) -> void:
