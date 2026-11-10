@@ -123,6 +123,12 @@ A pony who is angry with you or has asked for space turns away. Sleeping ponies 
 - **Tooth brushing**
 - **Bathing**
 
+## Contributors
+
+- **aperture_tech**: Mare Care itself, including the farrier, sparkles and hoof care.
+- **[modChad](https://github.com/modChad)**: the brushing groundwork, from his
+  [Grooming mod](https://github.com/modChad/home-equestria-mods/tree/main/grooming).
+
 ## Credits
 
 - **Brushing** is built on [modChad's Grooming mod](https://github.com/modChad/home-equestria-mods/tree/main/grooming).
