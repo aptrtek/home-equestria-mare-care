@@ -32,7 +32,30 @@ out, and you can use them on any willing pony.
    - **Hammer:** drive in all six nails, one click per nail. A shoe that has worked loose is
      re-nailed the same way.
    - **Hoof oil:** work it in, and the hoof shines for a few minutes.
+   - **Hoof massage:** with nothing in your hand, hold the mouse button on her lifted hoof (desktop),
+     or rub it slowly with your hand (VR). She relaxes into it. Grown mares only.
+   - **Hoof jewellery:** set a design on the lifted hoof. Use the same design again to take it off.
 3. **Walk away**, or ask for another hoof, and she puts it down.
+
+A lifted hoof shows its underside as it really is: the hoof wall's rim standing out around the
+sole, and the **frog**, the V-shaped pad that runs from the heels toward the toe. If you'd rather
+not see the frog, switch it off in the settings (see Upkeep below).
+
+### Hoof jewellery
+
+Six designs come in little velvet cases. Most go on the outside of the hoof, where everyone can
+see them. Two of them also add gems on the sole, around the frog.
+
+| Design | On the hoof wall | On the sole |
+| --- | --- | --- |
+| Crystal Hoof Gems | three clear gems | |
+| Ruby Hoof Band | a gold band with three rubies | |
+| Sapphire Hoof Band | a silver band with sapphires and crystals | |
+| Rainbow Hoof Gems | five gems in rainbow colours | |
+| Starry Hooves | a silver band with crystals and an amethyst | crystals and amethysts |
+| Royal Hoof Jewels | a gold band with emeralds, crystals and a ruby | citrines and rubies |
+
+Jewellery stays on her hooves, alongside any shoes, until you take it off.
 
 **Shoe all four.** Once one hoof is shod, she'd walk lopsided until the others are too. She waits
 where she is for you to finish, and the hint on a bare hoof says she'd like it shod to match. If
@@ -59,6 +82,8 @@ four are on:
 | Trim and rasp | 4 |
 | Hoof oil | 2 |
 | Resetting a loose shoe | 3 |
+| Hoof massage | 3 |
+| Hoof jewellery (each hoof, each new design) | 5 |
 | New shoe | steel 6, silver 9, rainbow 10, gold 12 |
 
 About two in three grown mares pay. The rest take it as a favour between friends, and which
@@ -88,10 +113,14 @@ oil_days=7.0
 
 [pay]
 enabled=true
+
+[hooves]
+show_frog=true
 ```
 
 Set a value to `0` to turn that job's upkeep off: once it's done, it stays done. Set
-`enabled=false` under `[pay]` to make hoof care free for everyone. Changes apply the next time
+`enabled=false` under `[pay]` to make hoof care free for everyone, and `show_frog=false` under
+`[hooves]` to hide the frog. Changes apply the next time
 you start the game.
 
 ### What it does for her

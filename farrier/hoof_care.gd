@@ -15,6 +15,8 @@ extends RefCounted
 ## 0 turns that job's upkeep off: once done, it stays done.
 ##   [pay]
 ##   enabled=true     some mares pay in bits for hoof care (never a wife)
+##   [hooves]
+##   show_frog=true   the frog on the underside of a lifted hoof
 
 const SETTINGS := "settings.cfg"
 const JOBS := ["pick", "trim", "shoe", "oil"]
@@ -23,6 +25,7 @@ const STAMP := {"pick": "picked", "trim": "trimmed", "shoe": "shod", "oil": "oil
 
 static var _days := {}
 static var pay_enabled := true
+static var show_frog := true
 
 
 static func load_settings(mod_id: String) -> void:
@@ -40,6 +43,10 @@ static func load_settings(mod_id: String) -> void:
 		config.set_value("pay", "enabled", true)
 		changed = true
 	pay_enabled = bool(config.get_value("pay", "enabled", true))
+	if not config.has_section_key("hooves", "show_frog"):
+		config.set_value("hooves", "show_frog", true)
+		changed = true
+	show_frog = bool(config.get_value("hooves", "show_frog", true))
 	if changed:
 		config.save(path)
 	print("[mare_care] hoof upkeep (in-game days, 0 = never): %s  (%s)" % [str(_days), ProjectSettings.globalize_path(path)])

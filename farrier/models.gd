@@ -7,7 +7,8 @@ extends RefCounted
 ## Frame: grip at the origin, working end toward -Z. Every mesh sits under a "container_*" node,
 ## so the game treats it as a container part (never eaten, never hidden).
 
-const KINDS := ["hoof_pick", "nippers", "rasp", "hammer", "hoof_oil", "shoe_steel", "shoe_silver", "shoe_gold", "shoe_rainbow"]
+const KINDS := ["hoof_pick", "nippers", "rasp", "hammer", "hoof_oil", "shoe_steel", "shoe_silver", "shoe_gold", "shoe_rainbow",
+	"jewels_crystal", "jewels_ruby", "jewels_sapphire", "jewels_rainbow", "jewels_starry", "jewels_royal"]
 ## Where each tool works, in its own frame (before the game centres the model on its bounds).
 const TIPS := {
 	"hoof_pick": Vector3(0, -0.012, -0.135),
@@ -16,6 +17,8 @@ const TIPS := {
 	"hammer": Vector3(0, -0.03, -0.235),
 	"hoof_oil": Vector3(0, -0.02, -0.17),
 	"shoe_steel": Vector3.ZERO, "shoe_silver": Vector3.ZERO, "shoe_gold": Vector3.ZERO, "shoe_rainbow": Vector3.ZERO,
+	"jewels_crystal": Vector3.ZERO, "jewels_ruby": Vector3.ZERO, "jewels_sapphire": Vector3.ZERO,
+	"jewels_rainbow": Vector3.ZERO, "jewels_starry": Vector3.ZERO, "jewels_royal": Vector3.ZERO,
 }
 const STYLES := ["steel", "silver", "gold", "rainbow"]
 const STYLE_NAMES := {"steel": "Steel", "silver": "Silver", "gold": "Gold", "rainbow": "Rainbow"}
@@ -40,6 +43,7 @@ static func build(kind: String) -> Node3D:
 		"hammer": _hammer(parts)
 		"hoof_oil": _oil(parts)
 		_:
+			if kind.begins_with("jewels_"): _jewel_case(parts, kind.trim_prefix("jewels_"))
 			if kind.begins_with("shoe_"):
 				var shoe := MeshInstance3D.new()
 				shoe.mesh = shoe_mesh(0.11)
@@ -193,3 +197,192 @@ static func _cylinder(top: float, bottom: float, height: float) -> CylinderMesh:
 static func _box(size: Vector3) -> BoxMesh:
 	var b := BoxMesh.new(); b.size = size
 	return b
+
+
+# ---------------------------------------------------------------- the frog
+
+## The frog: the V-shaped pad on the underside of a hoof, in the sole frame (+Y into the hoof,
+## -Z toward the toe), standing out below the sole. Its point reaches toward the middle of the
+## sole, it widens back to two rounded heel bulbs, and a groove runs down its middle (the central
+## sulcus). Built on its own outline (u from the point to the heels, v across), so its edge is
+## smooth and meets the sole at nothing.
+static func frog_mesh(width: float, length: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var nu := 24
+	var nv := 16
+	var apex_z := -0.24 * length
+	# The heels end just inside the hoof wall's rim (shoes.gd RIM_WALL).
+	var heel_z := 0.5 * length - 0.08 * width
+	var thick := 0.05 * width
+	var points := []
+	for iu in nu + 1:
+		var u := float(iu) / nu
+		var row := []
+		for iv in nv + 1:
+			var v := lerpf(-1.0, 1.0, float(iv) / nv)
+			row.append(_frog_point(u, v, apex_z, heel_z, width, thick))
+		points.append(row)
+	for iu in nu:
+		for iv in nv:
+			var a: Vector3 = points[iu][iv]; var b: Vector3 = points[iu][iv + 1]
+			var c: Vector3 = points[iu + 1][iv + 1]; var d: Vector3 = points[iu + 1][iv]
+			for q: Vector3 in [a, b, c, a, c, d]: st.add_vertex(q)
+	st.index()
+	st.generate_normals()
+	return st.commit()
+
+
+## A point on the frog: u 0 at its point, 1 at the heels; v -1..1 across.
+static func _frog_point(u: float, v: float, apex_z: float, heel_z: float, width: float, thick: float) -> Vector3:
+	# Half-width: a narrow point, a straight-sided wedge, swelling into the heel bulbs.
+	var half := width * (0.03 + 0.24 * pow(u, 0.9) + 0.06 * smoothstep(0.7, 1.0, u))
+	var z := lerpf(apex_z, heel_z, u)
+	var x := v * half
+	# Height: rounded across (zero at the edges), thinning to nothing at the point and the heels.
+	var across := sqrt(maxf(0.0, 1.0 - v * v))
+	var along := smoothstep(0.0, 0.25, u) * (1.0 - smoothstep(0.93, 1.0, u))
+	var h := thick * across * along * lerpf(0.6, 1.0, u)
+	# Each heel bulb swells a little more.
+	h += thick * 0.3 * smoothstep(0.65, 0.92, u) * (1.0 - smoothstep(0.92, 1.0, u)) * exp(-pow((absf(v) - 0.55) / 0.3, 2.0))
+	# The central groove, deepening toward the heels.
+	h *= 1.0 - 0.7 * exp(-pow(v / 0.14, 2.0)) * smoothstep(0.3, 0.7, u)
+	return Vector3(x, -h, z)
+
+
+## The hoof wall's bearing edge around the sole: a rim `depth` deep standing out below the sole (so
+## the frog sits recessed inside it), `wall` thick inward from the outside of the hoof. It follows
+## the sole's oval (`width` across, `length` toe to heel), smooth all the way round.
+static func rim_mesh(width: float, length: float, depth: float, wall: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := 48
+	var rx := width * 0.5
+	var rz := length * 0.5
+	var down := Vector3.DOWN * depth
+	for i in n:
+		var a0 := float(i) / n * TAU
+		var a1 := float(i + 1) / n * TAU
+		var ao := Vector3(cos(a0) * rx, 0.002, sin(a0) * rz)
+		var bo := Vector3(cos(a1) * rx, 0.002, sin(a1) * rz)
+		var ai := Vector3(cos(a0) * (rx - wall), 0.002, sin(a0) * (rz - wall))
+		var bi := Vector3(cos(a1) * (rx - wall), 0.002, sin(a1) * (rz - wall))
+		# Outer face, inner face, the bearing edge underneath.
+		for q: Vector3 in [ao, bo, bo + down, ao, bo + down, ao + down]: st.add_vertex(q)
+		for q: Vector3 in [ai, ai + down * 0.85, bi + down * 0.85, ai, bi + down * 0.85, bi]: st.add_vertex(q)
+		for q: Vector3 in [ao + down, bo + down, bi + down * 0.85, ao + down, bi + down * 0.85, ai + down * 0.85]: st.add_vertex(q)
+	st.index()
+	st.generate_normals()
+	return st.commit()
+
+
+# ---------------------------------------------------------------- hoof jewellery
+
+## Each design: name, the band around the hoof (metal colour or none), the gems on the front of the
+## hoof wall [angle from the toe in degrees, colour], and gems on the sole around the frog.
+const JEWELS := {
+	"crystal": {"name": "Crystal Hoof Gems", "band": "", "wall": [[-22, "crystal"], [0, "crystal"], [22, "crystal"]], "sole": []},
+	"ruby": {"name": "Ruby Hoof Band", "band": "gold", "wall": [[-20, "ruby"], [0, "ruby"], [20, "ruby"]], "sole": []},
+	"sapphire": {"name": "Sapphire Hoof Band", "band": "silver", "wall": [[-30, "sapphire"], [-10, "crystal"], [10, "crystal"], [30, "sapphire"]], "sole": []},
+	"rainbow": {"name": "Rainbow Hoof Gems", "band": "", "wall": [[-40, "ruby"], [-20, "topaz"], [0, "citrine"], [20, "emerald"], [40, "sapphire"]], "sole": []},
+	"starry": {"name": "Starry Hooves", "band": "silver", "wall": [[-30, "crystal"], [0, "amethyst"], [30, "crystal"]], "sole": ["crystal", "amethyst", "crystal", "amethyst", "crystal", "amethyst"]},
+	"royal": {"name": "Royal Hoof Jewels", "band": "gold", "wall": [[-35, "emerald"], [-15, "crystal"], [0, "ruby"], [15, "crystal"], [35, "emerald"]], "sole": ["citrine", "ruby", "citrine", "ruby"]},
+}
+const GEM_COLOURS := {
+	"crystal": Color(0.92, 0.97, 1.0), "ruby": Color(0.9, 0.08, 0.2), "sapphire": Color(0.12, 0.3, 0.95),
+	"emerald": Color(0.1, 0.8, 0.35), "topaz": Color(1.0, 0.55, 0.1), "citrine": Color(1.0, 0.85, 0.2),
+	"amethyst": Color(0.65, 0.3, 0.95),
+}
+
+
+## A cut gem: a flat table on top, a crown and a pointed pavilion, `size` across. Table toward +Z.
+static func gem_mesh(size: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var sides := 8
+	var r := size * 0.5
+	var table := r * 0.55
+	var crown := size * 0.18
+	var pavilion := size * 0.38
+	for i in sides:
+		var a0 := float(i) / sides * TAU
+		var a1 := float(i + 1) / sides * TAU
+		var g0 := Vector3(cos(a0) * r, sin(a0) * r, 0)
+		var g1 := Vector3(cos(a1) * r, sin(a1) * r, 0)
+		var t0 := Vector3(cos(a0) * table, sin(a0) * table, crown)
+		var t1 := Vector3(cos(a1) * table, sin(a1) * table, crown)
+		var top := Vector3(0, 0, crown)
+		var tip := Vector3(0, 0, -pavilion)
+		for q: Vector3 in [top, t0, t1, t0, g0, g1, t0, g1, t1, g0, tip, g1]: st.add_vertex(q)
+	st.generate_normals()
+	return st.commit()
+
+
+static func gem_material(kind: String) -> Material:
+	var m := StandardMaterial3D.new()
+	var c: Color = GEM_COLOURS.get(kind, Color.WHITE)
+	m.albedo_color = c
+	m.metallic = 0.3
+	m.roughness = 0.04
+	m.metallic_specular = 1.0
+	m.emission_enabled = true
+	m.emission = c * 0.25
+	m.rim_enabled = true
+	m.rim = 0.6
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
+
+
+## A thin band around the hoof through `ring` points ([point, outward] from hooves.ring()), pushed
+## out a little so it sits on the wall: a flat strip `height` tall.
+static func band_mesh(ring: Array, height: float, out: float) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := ring.size()
+	for i in n:
+		var a: Array = ring[i]
+		var b: Array = ring[(i + 1) % n]
+		var pa: Vector3 = Vector3(a[0]) + Vector3(a[1]) * out
+		var pb: Vector3 = Vector3(b[0]) + Vector3(b[1]) * out
+		var up := Vector3.UP * height * 0.5
+		var lip_a := Vector3(a[1]) * out * 0.6
+		var lip_b := Vector3(b[1]) * out * 0.6
+		# Outer face, then the top and bottom lips back to the wall.
+		for q: Vector3 in [pa - up, pb + up, pb - up, pa - up, pa + up, pb + up]: st.add_vertex(q)
+		for q: Vector3 in [pa + up, pb + up - lip_b, pb + up, pa + up, pa + up - lip_a, pb + up - lip_b]: st.add_vertex(q)
+		for q: Vector3 in [pa - up, pb - up, pb - up - lip_b, pa - up, pb - up - lip_b, pa - up - lip_a]: st.add_vertex(q)
+	st.generate_normals()
+	return st.commit()
+
+
+static func band_material(metal: String) -> Material:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color("f2c14e") if metal == "gold" else Color("e4e8ee")
+	m.metallic = 1.0
+	m.roughness = 0.2
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return m
+
+
+## A little velvet case, its lid open, with the design's gems (and band) set in it.
+static func _jewel_case(parts: Node3D, design: String) -> void:
+	var row: Dictionary = JEWELS.get(design, {})
+	_part(parts, _box(Vector3(0.07, 0.022, 0.06)), Color("5a1f3d"), Transform3D(Basis.IDENTITY, Vector3(0, 0, -0.03)), 0.95)
+	_part(parts, _box(Vector3(0.064, 0.004, 0.054)), Color("f3e6ef"), Transform3D(Basis.IDENTITY, Vector3(0, 0.012, -0.03)), 0.9)
+	_part(parts, _box(Vector3(0.07, 0.04, 0.006)), Color("5a1f3d"), Transform3D(Basis(Vector3.RIGHT, -0.35), Vector3(0, 0.03, 0.002)), 0.95)
+	if str(row.get("band", "")) != "":
+		var torus := TorusMesh.new()
+		torus.inner_radius = 0.016; torus.outer_radius = 0.019; torus.rings = 24; torus.ring_segments = 6
+		var band := MeshInstance3D.new()
+		band.mesh = torus
+		band.material_override = band_material(str(row.band))
+		band.transform = Transform3D(Basis.IDENTITY, Vector3(0, 0.016, -0.03))
+		parts.add_child(band)
+	var gems: Array = row.get("wall", [])
+	for i in gems.size():
+		var gem := MeshInstance3D.new()
+		gem.mesh = gem_mesh(0.011)
+		gem.material_override = gem_material(str(gems[i][1]))
+		var x := (float(i) - (gems.size() - 1) * 0.5) * 0.012
+		gem.transform = Transform3D(Basis(Vector3.RIGHT, -PI / 2), Vector3(x, 0.017, -0.03))
+		parts.add_child(gem)

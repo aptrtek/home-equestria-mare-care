@@ -1,9 +1,9 @@
 {
 	"id": "mare_care",
 	"name": "Mare Care",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"author": "aperture_tech, modChad",
-	"description": "New ways to look after your mare. Be her farrier: pick out her hooves, trim and rasp them, nail on horseshoes in steel, silver, gold or rainbow, and oil them until they shine. Some mares pay in bits for it (never your wife). Brush her mane and tail until they sparkle, and brush her coat (built on modChad's Grooming mod). Tooth brushing and bathing are on the way. A free fan mod.",
+	"description": "New ways to look after your mare. Be her farrier: pick out her hooves, trim and rasp them, nail on horseshoes in steel, silver, gold or rainbow, oil them until they shine, massage them, and set them with gems. Some mares pay in bits for it (never your wife). Brush her mane and tail until they sparkle, and brush her coat (built on modChad's Grooming mod). Tooth brushing and bathing are on the way. A free fan mod.",
 	"game_version": "0.3.0-maredev",
 	"entry": "res://mods/mare_care/main.gd"
 }

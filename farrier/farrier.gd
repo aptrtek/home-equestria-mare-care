@@ -34,7 +34,23 @@ const TOOLS := {
 	"food:care-hammer": "hammer", "food:care-hoof-oil": "hoof_oil",
 	"food:care-shoe-steel": "shoe_steel", "food:care-shoe-silver": "shoe_silver",
 	"food:care-shoe-gold": "shoe_gold", "food:care-shoe-rainbow": "shoe_rainbow",
+	"food:care-jewels-crystal": "jewels_crystal", "food:care-jewels-ruby": "jewels_ruby",
+	"food:care-jewels-sapphire": "jewels_sapphire", "food:care-jewels-rainbow": "jewels_rainbow",
+	"food:care-jewels-starry": "jewels_starry", "food:care-jewels-royal": "jewels_royal",
 }
+## Jewellery came after the first kit: granted on its own, once.
+const LATER_TOOLS := ["food:care-jewels-crystal", "food:care-jewels-ruby", "food:care-jewels-sapphire",
+	"food:care-jewels-rainbow", "food:care-jewels-starry", "food:care-jewels-royal"]
+## A hoof massage: seconds of slow rubbing on a lifted hoof, empty-handed. Grown mares only.
+const MASSAGE_SECONDS := 10.0
+## The same hoof gives its massage bonus at most this often (real seconds).
+const MASSAGE_COOLDOWN := 600.0
+const VR_MASSAGE_REACH := 0.08
+const VR_MASSAGE_SPEED := Vector2(0.02, 0.6)
+const MASSAGE_THOUGHT := "Anon massaged all four of my hooves. I feel like I'm walking on clouds..."
+const MASSAGE_MEMORY := "Anon gave you a slow, soothing hoof massage on all four hooves."
+const JEWEL_THOUGHT := "Anon decorated my hooves with %s! I can't stop looking at them."
+const JEWEL_MEMORY := "Anon set %s on your hooves."
 const DESKTOP_REACH := 2.4
 ## A leg is aimed at within this of its lower part (sole up LEG_HEIGHT), metres at body scale 1.
 const LEG_AIM := 0.06
@@ -62,7 +78,7 @@ const PIECES := Vector2i(3, 5)
 const OIL_SHINE := 300.0
 ## Bits for each job on a hoof that needed it (a new shoe by its style; re-nailing a loose one is
 ## "reset"). Paid when she puts the hoof down, by the mares who pay (see _pays()).
-const PRICES := {"pick": 2, "trim": 4, "oil": 2, "reset": 3,
+const PRICES := {"pick": 2, "trim": 4, "oil": 2, "reset": 3, "massage": 3, "jewel": 5,
 	"shoe_steel": 6, "shoe_silver": 9, "shoe_gold": 12, "shoe_rainbow": 10}
 ## Roughly this share of grown mares pay for hoof care; the rest take it as a favour between
 ## friends. Which ones is fixed per pony, the same in every world.
@@ -132,6 +148,7 @@ func _ready() -> void:
 func _on_world(game: Node) -> void:
 	_place_catcher.call_deferred()
 	var state := Mods.state(mod_id)
+	_grant_later(game, state)
 	if bool(state.get("granted_farrier", false)): return
 	var inventory: Node = game.get("inventory")
 	if inventory == null: return
@@ -139,6 +156,7 @@ func _on_world(game: Node) -> void:
 	if store == null or not store.has_method("grant"): return
 	var ok := true
 	for id: String in TOOLS:
+		if id in LATER_TOOLS: continue
 		if int(store.grant(id)) < 0: ok = false
 	if ok:
 		state["granted_farrier"] = true
@@ -146,6 +164,20 @@ func _on_world(game: Node) -> void:
 		print("[mare_care] farrier tools added to the briefcase")
 	else:
 		print("[mare_care] no room for all the farrier tools yet; the rest come next load")
+
+
+func _grant_later(game: Node, state: Dictionary) -> void:
+	if bool(state.get("granted_jewels", false)): return
+	var inventory: Node = game.get("inventory")
+	var store: Variant = inventory.get("inventory") if inventory != null else null
+	if store == null or not store.has_method("grant"): return
+	var ok := true
+	for id: String in LATER_TOOLS:
+		if int(store.grant(id)) < 0: ok = false
+	if ok:
+		state["granted_jewels"] = true
+		Mods.save_changed()
+		print("[mare_care] hoof jewellery added to the briefcase")
 
 
 func _place_catcher() -> void:
@@ -187,17 +219,34 @@ func _desk_tool() -> Dictionary:
 ## plus kind and item; {} for nothing.
 func _desktop_target() -> Dictionary:
 	var tool := _desk_tool()
-	if tool.is_empty(): return {}
+	if tool.is_empty():
+		# Empty-handed on her lifted hoof: a massage.
+		if _session.is_empty() or not _empty_hand() or not _can_massage(_session.pony): return {}
+		tool = {"item": null, "kind": "massage"}
 	var camera: Camera3D = _inventory().get("camera")
 	if camera == null: return {}
 	var origin := camera.global_position
 	var forward := -camera.global_basis.z
 	var hit := _aim_hoof(origin, forward, tool.kind)
-	if hit.is_empty(): hit = _aim_leg(origin, origin + forward * DESKTOP_REACH)
+	if hit.is_empty() and tool.kind != "massage": hit = _aim_leg(origin, origin + forward * DESKTOP_REACH)
 	if hit.is_empty(): return {}
 	hit.kind = tool.kind
 	hit.item = tool.item
 	return hit
+
+
+func _empty_hand() -> bool:
+	var inventory := _inventory()
+	if inventory == null or not bool(inventory.get("_desktop")): return false
+	var held: Dictionary = inventory.get("held")
+	return not held.has("desktop") or not is_instance_valid(held.desktop)
+
+
+## Hoof massages are for grown mares.
+func _can_massage(pony: Variant) -> bool:
+	if not is_instance_valid(pony): return false
+	var identity: Variant = pony.get("identity")
+	return identity == null or not bool(identity.get("filly"))
 
 
 func _aim_hoof(origin: Vector3, forward: Vector3, kind: String) -> Dictionary:
@@ -321,7 +370,15 @@ func _hoof_hint(hit: Dictionary) -> String:
 			return ("Click · Drive the nail  %d/6" if hit.has("nail") else "Hammer: aim at a nail  %d/6") % driven
 		"hoof_oil":
 			return "Hold click · Oil the hoof  %d%%" % int(100.0 * float(_session.oil))
+		"massage":
+			if float(_session.get("massage", 0.0)) >= 1.0: return "Hoof massaged"
+			return "Hold click · Massage her hoof  %d%%" % int(100.0 * float(_session.get("massage", 0.0)))
 		_:
+			if kind.begins_with("jewels_"):
+				var design := kind.trim_prefix("jewels_")
+				var label := str(MODELS.JEWELS[design].name)
+				if str(record.get("jewel", "")) == design: return "Click · Take off the %s" % label.to_lower()
+				return "Click · Set the %s on this hoof" % label.to_lower()
 			var style := kind.trim_prefix("shoe_")
 			if not fitting.is_empty(): return "Nail the shoe on with the hammer"
 			if _shod(record): return "Already shod · Pull the shoe with the nippers to change it"
@@ -424,7 +481,19 @@ func _work(kind: String, hit: Dictionary, dt: float, held: bool) -> void:
 			if float(_session.oil) >= 1.0:
 				_done("oil")
 				SPARKLE.of(pony).call("shine_bone", "hoof_" + str(_session.leg), HOOVES.BONES[_session.leg], OIL_SHINE)
+		"massage":
+			if float(_session.get("massage", 0.0)) >= 1.0: return
+			_session.massage = minf(1.0, float(_session.get("massage", 0.0)) + dt / MASSAGE_SECONDS)
+			var expressions: Variant = pony.get("expressions")
+			if expressions != null and expressions.has_method("touch"):
+				expressions.touch("mare_care_hoof", 0.6, lerpf(0.4, 0.85, float(_session.massage)))
+			_rhythm("oil", hit.point, 0.9, 0.8)
+			if float(_session.massage) >= 1.0: _massaged()
 		_:
+			if kind.begins_with("jewels_"):
+				_jewel(kind.trim_prefix("jewels_"))
+				_desk_down = false
+				return
 			if not kind.begins_with("shoe_") or not fitting.is_empty() or _shod(record): return
 			if CARE.due(record, "trim") and float(_session.rasp) < 1.0: return
 			_fit(kind.trim_prefix("shoe_"), false)
@@ -467,12 +536,14 @@ func _begin(pony: Node3D, leg: String) -> void:
 		"oil": 0.0, "pull": 0.0, "fitting": {}, "idle": 0.0, "done": [], "owed": 0}
 	if not CARE.due(record, "trim"): _session.nip = 1.0
 	if CARE.due(record, "pick"): _spawn_pieces(pony, leg)
+	_shoes().frog(pony, leg, true)
 	var camera := _camera()
 	if camera != null and pony.has_method("set_action_gaze"): pony.call("set_action_gaze", camera)
 	if leg.begins_with("R"):
 		var tail: Variant = pony.get("tail_motion")
 		if tail != null and "aside_goal" in tail: tail.aside_goal = (-0.5 if leg.ends_with("R") else 0.5)   # away from the lifted hoof (and you)
-	print("[mare_care] %s lifts her %s hoof (needs: %s)" % [_pony_id(pony), HOOVES.NAMES[leg], ", ".join(_needs(record))])
+	var needs := _needs(record)
+	print("[mare_care] %s lifts her %s hoof (%s)" % [_pony_id(pony), HOOVES.NAMES[leg], ("needs: " + ", ".join(needs)) if not needs.is_empty() else "nothing due"])
 
 
 func _keep_session(dt: float) -> void:
@@ -503,6 +574,7 @@ func _end_session() -> void:
 	if not is_instance_valid(pony): return
 	# A shoe that wasn't nailed all the way comes off again.
 	_shoes().fitting(pony, leg, "", [])
+	_shoes().frog(pony, leg, false)
 	HOOVES.lower(pony)
 	if owed > 0: _collect(pony, leg, owed)
 	var expressions: Variant = pony.get("expressions")
@@ -761,6 +833,80 @@ func _display_name(pony: Node3D) -> String:
 	return _pony_id(pony).capitalize()
 
 
+## Sets a jewellery design on the lifted hoof, or takes it off if it's already that design.
+func _jewel(design: String) -> void:
+	var pony: Node3D = _session.pony
+	var record: Dictionary = _session.record
+	var label := str(MODELS.JEWELS[design].name).to_lower()
+	if str(record.get("jewel", "")) == design:
+		record.erase("jewel")
+		Mods.save_changed()
+		_shoes().refresh(pony)
+		_sound("pick", HOOVES.sole_point(pony, _session.leg), -8.0, 1.3)
+		return
+	record["jewel"] = design
+	Mods.save_changed()
+	_shoes().refresh(pony)
+	_sound("tap", HOOVES.sole_point(pony, _session.leg), -12.0, 1.6)
+	var expressions: Variant = pony.get("expressions")
+	if expressions != null and expressions.has_method("fluster"): expressions.fluster(0.7)
+	print("[mare_care] %s: %s on her %s hoof" % [_pony_id(pony), label, HOOVES.NAMES[_session.leg]])
+	# Paid once per hoof per design; the thought and memory once she has the design on all four.
+	if str(record.get("jewel_paid", "")) != design:
+		record["jewel_paid"] = design
+		_session.owed = int(_session.owed) + int(PRICES.jewel)
+		var all_four := true
+		for leg: String in HOOVES.LEGS:
+			if str((CARE.hooves(mod_id, _pony_id(pony)).get(leg, {}) as Dictionary).get("jewel", "")) != design: all_four = false
+		_grateful(pony, 2 if all_four else 1, (JEWEL_THOUGHT % label) if all_four else "", (JEWEL_MEMORY % label) if all_four else "", "happy")
+
+
+## A hoof massage finished: a little friendship per hoof (once per MASSAGE_COOLDOWN), and once
+## all four have been massaged within the cooldown, more, a thought and a memory.
+func _massaged() -> void:
+	var pony: Node3D = _session.pony
+	var record: Dictionary = _session.record
+	var now := Time.get_unix_time_from_system()
+	var fresh := now - float(record.get("massaged_at", 0.0)) >= MASSAGE_COOLDOWN
+	record["massaged_at"] = now
+	Mods.save_changed()
+	_sigh_soft(pony)
+	print("[mare_care] %s: %s hoof massaged" % [_pony_id(pony), HOOVES.NAMES[_session.leg]])
+	if not fresh: return
+	_session.owed = int(_session.owed) + int(PRICES.massage)
+	var all_four := true
+	for leg: String in HOOVES.LEGS:
+		var r: Dictionary = CARE.hooves(mod_id, _pony_id(pony)).get(leg, {})
+		if now - float(r.get("massaged_at", 0.0)) > MASSAGE_COOLDOWN * 1.5: all_four = false
+	_grateful(pony, 2 if all_four else 1, MASSAGE_THOUGHT if all_four else "", MASSAGE_MEMORY if all_four else "", "relaxed")
+
+
+## Friendship, and when `thought` is given her thought, a memory and (care given freely, an adult
+## already fond of Anon) a little love.
+func _grateful(pony: Node3D, friendship: int, thought: String, memory: String, mood: String) -> void:
+	var id := _pony_id(pony)
+	var game := _game()
+	if id.is_empty() or game == null or game.get("world_context") == null: return
+	var context: Node = game.world_context
+	var bonds: Variant = context.get("player_bonds")
+	var tags := {"friendship": friendship, "mood": mood}
+	if not thought.is_empty():
+		tags["thought"] = thought
+		if not _pays(pony) and bonds != null and bonds.has_method("eligible_for_romance") and bonds.eligible_for_romance(id):
+			var stage := str(bonds.record_for(id).get("stage", "acquaintance"))
+			if int(bonds.interest(id)) >= 25 or stage in ["dating", "engaged", "married"]: tags["romance"] = 1
+	var impressions: Variant = context.get("impressions")
+	if impressions != null and is_instance_valid(impressions):
+		impressions.commit(id, tags, "mare_care_%d" % Time.get_ticks_usec())
+	if not memory.is_empty() and context.has_method("record"): context.record("mare_care", memory, [id, "player"], [id, "player"])
+	print("[mare_care] %s: %s" % [id, str(tags)])
+
+
+func _sigh_soft(pony: Node3D) -> void:
+	var boop: Variant = pony.get("boop_node")
+	if boop != null and is_instance_valid(boop) and boop.has_method("play_breath"): boop.call("play_breath", -22.0)
+
+
 func _shod(record: Dictionary) -> bool:
 	return not str(record.get("shoe", "")).is_empty()
 
@@ -823,6 +969,7 @@ func _reward(pony: Node3D, job: String, style: String) -> void:
 func _sense_vr(game: Node, dt: float) -> void:
 	var inventory: Node = game.get("inventory")
 	if inventory == null or bool(inventory.get("_desktop")): return
+	_sense_vr_massage(inventory, dt)
 	var held: Dictionary = inventory.get("held")
 	for side: String in held.keys():
 		if side == "desktop": continue
@@ -839,13 +986,35 @@ func _sense_vr(game: Node, dt: float) -> void:
 		if not hit.is_empty():
 			var moving := speed > VR_MIN_SPEED
 			if kind == "hammer": moving = speed > VR_HAMMER_SPEED and hit.has("nail")
-			if kind.begins_with("shoe_"): moving = true
+			if kind.begins_with("shoe_") or kind.begins_with("jewels_"): moving = true
 			_work(kind, hit, dt, moving)
 			if moving and inventory.has_method("_haptic") and _rng.randf() < 0.2: inventory.call("_haptic", side)
 			continue
 		var leg := _aim_leg(tip + Vector3.UP * 0.05, tip - Vector3.UP * 0.05)
 		if not leg.is_empty() and (_session.is_empty() or _session.pony != leg.pony or _session.leg != leg.leg):
 			if _pending.is_empty() and _willing(leg.pony): _ask_lift(leg.pony, leg.leg)
+
+
+## VR: an empty hand rubbing slowly on her lifted sole massages it.
+func _sense_vr_massage(inventory: Node, dt: float) -> void:
+	if _session.is_empty() or not _can_massage(_session.pony) or not inventory.has_method("hand_sample"): return
+	var held: Dictionary = inventory.get("held")
+	var sole := HOOVES.sole_point(_session.pony, _session.leg)
+	if not sole.is_finite(): return
+	for side: String in ["left", "right"]:
+		if held.has(side) and is_instance_valid(held[side]): continue
+		var sample: Dictionary = inventory.call("hand_sample", side)
+		if not bool(sample.get("active", false)): continue
+		var palm: Vector3 = sample.get("grip_position", Vector3.INF)
+		if not palm.is_finite() or palm.distance_to(sole) > VR_MASSAGE_REACH * HOOVES.scale_of(_session.pony): continue
+		var key := "palm_" + side
+		var speed := 0.0
+		if _last_tip.has(key): speed = palm.distance_to(_last_tip[key]) / dt
+		_last_tip[key] = palm
+		if speed >= VR_MASSAGE_SPEED.x and speed <= VR_MASSAGE_SPEED.y:
+			_work("massage", {"what": "hoof", "pony": _session.pony, "leg": _session.leg, "point": palm}, dt, true)
+			if _rng.randf() < 0.1 and inventory.has_method("_haptic"): inventory.call("_haptic", side)
+		return
 
 
 func _vr_hoof(tip: Vector3, kind: String) -> Dictionary:
@@ -909,6 +1078,7 @@ func _animate_desktop_tool(delta: float) -> void:
 	if _desk_hit.is_empty() or _session.is_empty(): return
 	_desk_clock += delta
 	var kind: String = _desk_hit.kind
+	if not MODELS.TIPS.has(kind): return
 	var camera := _camera()
 	if camera == null: return
 	var point: Vector3 = _desk_hit.point
