@@ -7,12 +7,16 @@ Built for game version `0.3.0-maredev`. Works on desktop and in VR.
 
 > **Work in progress.** Farrier work and brushing are in. Tooth brushing and bathing are next.
 
+![A freshly brushed mane and tail, sparkling](docs/sparkle.jpg)
+
 ## Farrier
 
 The first time you load a world with the mod on, a farrier's kit appears in your briefcase: a
 **Hoof Pick**, **Hoof Nippers**, a **Hoof Rasp**, a **Farrier's Hammer**, **Hoof Oil**, and
 horseshoes in four styles: **Steel**, **Silver**, **Gold** and **Rainbow**. The tools never run
 out, and you can use them on any willing pony.
+
+![Picking stones out of a lifted back hoof, a rainbow shoe nailed on](docs/farrier_pick.jpg)
 
 1. **Ask for a hoof.** Hold any farrier tool and look at one of her legs, then click (desktop),
    or touch the leg with the tool (VR). She lifts that hoof for you: a front hoof folds back at
@@ -32,6 +36,27 @@ out, and you can use them on any willing pony.
 
 Her shoes stay on, in the style you chose, wherever she goes. Every pony's hooves are saved
 with your world.
+
+| The farrier's kit | A rainbow shoe, nailed on |
+| --- | --- |
+| ![Hoof pick, nippers, rasp, hammer, hoof oil and the four horseshoes](docs/farrier_kit.jpg) | ![A lifted hind hoof wearing a rainbow horseshoe](docs/rainbow_shoe.jpg) |
+
+### Paying for hoof care
+
+Some mares pay you in bits for hoof care, out of their own purse, when they put the hoof down
+again. Each job only counts if the hoof needed it:
+
+| Job | Bits |
+| --- | --- |
+| Picking out | 2 |
+| Trim and rasp | 4 |
+| Hoof oil | 2 |
+| Resetting a loose shoe | 3 |
+| New shoe | steel 6, silver 9, rainbow 10, gold 12 |
+
+About two in three grown mares pay. The rest take it as a favour between friends, and which
+ones they are stays the same in every world. Hoof care is always free for your wife, and fillies
+never pay. A mare who's short of bits just thanks you instead.
 
 ### Upkeep
 
@@ -53,10 +78,14 @@ pick_days=7.0
 trim_days=7.0
 shoe_days=7.0
 oil_days=7.0
+
+[pay]
+enabled=true
 ```
 
-Set a value to `0` to turn that job's upkeep off: once it's done, it stays done. Changes apply
-the next time you start the game.
+Set a value to `0` to turn that job's upkeep off: once it's done, it stays done. Set
+`enabled=false` under `[pay]` to make hoof care free for everyone. Changes apply the next time
+you start the game.
 
 ### What it does for her
 
@@ -103,6 +132,7 @@ A pony who is angry with you or has asked for space turns away. Sleeping ponies 
 - **Brushing sounds:** modChad's own recordings, from the Grooming mod.
 - **Sparkles, farrier tools and horseshoes:** made for this mod.
 - **Farrier sounds:** the game's own foley (metal, crunch, rasp and cloth sounds).
+- **Pictures:** taken in game.
 - **Contented sigh:** the game's own pony breath sounds.
 
 This is a free fan mod.

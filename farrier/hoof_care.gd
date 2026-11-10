@@ -13,6 +13,8 @@ extends RefCounted
 ##   shoe_days=7.0    reset the shoes (re-nail them)
 ##   oil_days=7.0     oil again
 ## 0 turns that job's upkeep off: once done, it stays done.
+##   [pay]
+##   enabled=true     some mares pay in bits for hoof care (never a wife)
 
 const SETTINGS := "settings.cfg"
 const JOBS := ["pick", "trim", "shoe", "oil"]
@@ -20,6 +22,7 @@ const DEFAULT_DAYS := 7.0
 const STAMP := {"pick": "picked", "trim": "trimmed", "shoe": "shod", "oil": "oiled"}
 
 static var _days := {}
+static var pay_enabled := true
 
 
 static func load_settings(mod_id: String) -> void:
@@ -33,6 +36,10 @@ static func load_settings(mod_id: String) -> void:
 			config.set_value("upkeep", key, DEFAULT_DAYS)
 			changed = true
 		_days[job] = maxf(0.0, float(config.get_value("upkeep", key, DEFAULT_DAYS)))
+	if not config.has_section_key("pay", "enabled"):
+		config.set_value("pay", "enabled", true)
+		changed = true
+	pay_enabled = bool(config.get_value("pay", "enabled", true))
 	if changed:
 		config.save(path)
 	print("[mare_care] hoof upkeep (in-game days, 0 = never): %s  (%s)" % [str(_days), ProjectSettings.globalize_path(path)])

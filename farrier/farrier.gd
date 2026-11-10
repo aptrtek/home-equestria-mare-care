@@ -22,6 +22,8 @@ extends Node
 
 const HOOVES := preload("res://mods/mare_care/farrier/hooves.gd")
 const CARE := preload("res://mods/mare_care/farrier/hoof_care.gd")
+## The game's one way to move bits (world/mechanics/ledger.gd): she pays from her own purse.
+const LEDGER := preload("res://world/mechanics/ledger.gd")
 const MODELS := preload("res://mods/mare_care/farrier/models.gd")
 const SPARKLE := preload("res://mods/mare_care/brushing/sparkle.gd")
 const INPUT := preload("res://mods/mare_care/brushing/input_catcher.gd")
@@ -58,6 +60,13 @@ const IDLE_SECONDS := 30.0
 ## Stones and dirt in a hoof that needs picking.
 const PIECES := Vector2i(3, 5)
 const OIL_SHINE := 300.0
+## Bits for each job on a hoof that needed it (a new shoe by its style; re-nailing a loose one is
+## "reset"). Paid when she puts the hoof down, by the mares who pay (see _pays()).
+const PRICES := {"pick": 2, "trim": 4, "oil": 2, "reset": 3,
+	"shoe_steel": 6, "shoe_silver": 9, "shoe_gold": 12, "shoe_rainbow": 10}
+## Roughly this share of grown mares pay for hoof care; the rest take it as a favour between
+## friends. Which ones is fixed per pony, the same in every world.
+const PAYING_SHARE := 65
 const SND := {
 	"pick": ["res://world/audio/designed/foley/select_01.wav"],
 	"nip": ["res://world/audio/designed/foley/carrot_01.wav", "res://world/audio/designed/foley/carrot_02.wav", "res://world/audio/designed/foley/carrot_03.wav"],
@@ -264,7 +273,9 @@ func interaction_hint() -> Dictionary:
 		var record := _record(hit.pony, hit.leg)
 		text = "Click · Ask her to lift her %s hoof" % HOOVES.NAMES[hit.leg]
 		var needs := _needs(record)
-		if not needs.is_empty(): text += "  (needs: %s)" % ", ".join(needs)
+		if not needs.is_empty():
+			text += "  (needs: %s)" % ", ".join(needs)
+			if _pays(hit.pony): text += " · she pays"
 	else:
 		text = _hoof_hint(hit)
 	return {"target": hit.pony, "text": text, "point": hit.point, "outline": null}
@@ -441,14 +452,14 @@ func _try_pending() -> void:
 func _begin(pony: Node3D, leg: String) -> void:
 	var record := _record(pony, leg)
 	_session = {"pony": pony, "leg": leg, "record": record, "pieces": [], "nip": 0.0, "rasp": 0.0,
-		"oil": 0.0, "pull": 0.0, "fitting": {}, "idle": 0.0, "done": []}
+		"oil": 0.0, "pull": 0.0, "fitting": {}, "idle": 0.0, "done": [], "owed": 0}
 	if not CARE.due(record, "trim"): _session.nip = 1.0
 	if CARE.due(record, "pick"): _spawn_pieces(pony, leg)
 	var camera := _camera()
 	if camera != null and pony.has_method("set_action_gaze"): pony.call("set_action_gaze", camera)
 	if leg.begins_with("R"):
 		var tail: Variant = pony.get("tail_motion")
-		if tail != null and "aside_goal" in tail: tail.aside_goal = (0.45 if leg.ends_with("R") else -0.45)
+		if tail != null and "aside_goal" in tail: tail.aside_goal = (-0.5 if leg.ends_with("R") else 0.5)   # away from the lifted hoof (and you)
 	print("[mare_care] %s lifts her %s hoof (needs: %s)" % [_pony_id(pony), HOOVES.NAMES[leg], ", ".join(_needs(record))])
 
 
@@ -470,6 +481,7 @@ func _end_session() -> void:
 	if _session.is_empty(): return
 	var pony: Variant = _session.pony
 	var leg: String = _session.leg
+	var owed := int(_session.get("owed", 0))
 	for piece: Variant in _session.pieces:
 		if is_instance_valid(piece): (piece as Node).queue_free()
 	var holder: Variant = _session.get("holder", null)
@@ -480,6 +492,7 @@ func _end_session() -> void:
 	# A shoe that wasn't nailed all the way comes off again.
 	_shoes().fitting(pony, leg, "", [])
 	HOOVES.lower(pony)
+	if owed > 0: _collect(pony, leg, owed)
 	if pony.has_method("set_action_gaze"): pony.call("set_action_gaze", null)
 	var expressions: Variant = pony.get("expressions")
 	if expressions != null and expressions.has_method("release_touch"): expressions.release_touch("mare_care_hoof")
@@ -588,6 +601,7 @@ func _fit(style: String, reset: bool) -> void:
 func _shod_done() -> void:
 	var record: Dictionary = _session.record
 	var fitting: Dictionary = _session.fitting
+	_session.reset_shoe = bool(fitting.get("reset", false))
 	record["shoe"] = str(fitting.style)
 	_session.fitting = {}
 	_shoes().fitting(_session.pony, _session.leg, "", [])
@@ -605,6 +619,57 @@ func _pull_shoe() -> void:
 	Mods.save_changed()
 
 
+## True when she pays for hoof care: a grown mare, not married to Anon (hoof care is free for a
+## wife), not a spa client, and one of the mares who pay (PAYING_SHARE of them, fixed per pony).
+func _pays(pony: Node3D) -> bool:
+	if not CARE.pay_enabled or pony.has_meta("spa_client"): return false
+	var identity: Variant = pony.get("identity")
+	if identity != null and bool(identity.get("filly")): return false
+	var id := _pony_id(pony)
+	if id.is_empty(): return false
+	if _stage(id) == "married": return false
+	return absi(hash("mare_care:pays:" + id)) % 100 < PAYING_SHARE
+
+
+func _stage(id: String) -> String:
+	var game := _game()
+	var context: Variant = game.get("world_context") if game != null else null
+	var bonds: Variant = context.get("player_bonds") if context != null else null
+	if bonds == null or not bonds.has_method("record_for"): return ""
+	return str(bonds.record_for(id).get("stage", ""))
+
+
+## She pays for the jobs done on the hoof she just put down, from her own purse. Short of bits,
+## she says so and that's that.
+func _collect(pony: Node3D, leg: String, amount: int) -> void:
+	if not _pays(pony): return
+	var game := _game()
+	if game == null: return
+	var id := _pony_id(pony)
+	var name := _display_name(pony)
+	var why := LEDGER.transfer(game, id, LEDGER.PLAYER, amount, "service", {
+		"pony": pony,
+		"receipt": "mare_care:%s:%s:%d" % [id, leg, Time.get_ticks_usec()],
+		"say": "%s paid you %d bits for hoof care" % [name, amount],
+		"text": "%s paid Anon %d bits for looking after her %s hoof." % [name, amount, HOOVES.NAMES[leg]],
+		"witnesses": [id, "player"],
+	})
+	if why.is_empty():
+		print("[mare_care] %s paid %d bits for her %s hoof" % [id, amount, HOOVES.NAMES[leg]])
+	else:
+		print("[mare_care] %s couldn't pay %d bits: %s" % [id, amount, why])
+		var inventory := _inventory()
+		if inventory != null: LEDGER.say(inventory, "%s is short of bits today, but thanks you warmly" % name)
+
+
+func _display_name(pony: Node3D) -> String:
+	var identity: Variant = pony.get("identity")
+	for key: String in ["display_name", "name"]:
+		var value: Variant = identity.get(key) if identity != null else null
+		if value is String and not (value as String).is_empty(): return value
+	return _pony_id(pony).capitalize()
+
+
 func _shod(record: Dictionary) -> bool:
 	return not str(record.get("shoe", "")).is_empty()
 
@@ -614,6 +679,10 @@ func _done(job: String, style := "") -> void:
 	var pony: Node3D = _session.pony
 	var record: Dictionary = _session.record
 	var was_due := job == "shoe" or CARE.due(record, job)
+	if was_due:
+		var price_key := job
+		if job == "shoe": price_key = "reset" if bool((_session.get("reset_shoe", false))) else "shoe_" + style
+		_session.owed = int(_session.owed) + int(PRICES.get(price_key, 0))
 	CARE.mark(mod_id, record, job)
 	_shoes().refresh(pony)
 	print("[mare_care] %s: %s hoof %s" % [_pony_id(pony), HOOVES.NAMES[_session.leg], JOB_NAMES[job]])
