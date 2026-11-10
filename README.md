@@ -97,8 +97,9 @@ you start the game.
 ### What it does for her
 
 Doing a job on a hoof that needed it gains a little friendship. Once all four of her hooves have
-had it, she gains more, plus love if she's an adult who is already fond of you, and she remembers
-it, so she can bring it up in conversation.
+had it, she gains more and remembers it, so she can bring it up in conversation. If she isn't
+paying for it, as with your wife or a mare who takes it as a favour, she also gains love if she's
+an adult who is already fond of you. A paid job is just good service.
 
 A pony who is angry with you or has asked for space won't lift a hoof. Neither will sleeping
 ponies or ponies at the spa.

@@ -800,7 +800,8 @@ func _reward(pony: Node3D, job: String, style: String) -> void:
 	if all_four:
 		tags["friendship"] = 2
 		tags["thought"] = THOUGHTS[job]
-		if bonds != null and bonds.has_method("eligible_for_romance") and bonds.eligible_for_romance(id):
+		# Romance only for care given freely: a mare who pays had a service done, not a gesture.
+		if not _pays(pony) and bonds != null and bonds.has_method("eligible_for_romance") and bonds.eligible_for_romance(id):
 			var stage := str(bonds.record_for(id).get("stage", "acquaintance"))
 			if int(bonds.interest(id)) >= 25 or stage in ["dating", "engaged", "married"]:
 				tags["romance"] = 1
