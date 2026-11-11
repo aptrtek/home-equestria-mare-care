@@ -289,6 +289,10 @@ static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -
 			print("[mare_care] the %s sole could not be sculpted (its edge is not one simple loop)" % bone_name)
 			continue
 		for t in cap: drop[t] = true
+		# The game's own cap, kept for the outer band, which must stay exactly as it was.
+		var cap_tris: Array = []
+		for t in cap: cap_tris.append([index[t], index[t + 1], index[t + 2]])
+		var ring_t := {}
 		# Centre and extent of the sole.
 		var centre := Vector2.ZERO
 		for v in loop: centre += Vector2(verts[v].x, verts[v].z)
@@ -337,7 +341,13 @@ static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -
 				var angle := atan2(lv.z - centre.y, lv.x - centre.x)
 				# Near the edge the heights are the edge's own (so the join is clean); inside, the smoothed ones.
 				var edge_height := lerpf(lerpf(edge_y[i0], edge_y[(i0 + 1) % n_edge], frac), lerpf(raw_y[i0], raw_y[(i0 + 1) % n_edge], frac), smoothstep(0.965, 1.0, t))
-				var y := low + _height(model, t, angle, (x - centre.x) / half.x, (z - centre.y) / half.y, edge_height, with_frog)
+				var model_y := _height(model, t, angle, (x - centre.x) / half.x, (z - centre.y) / half.y, edge_height, with_frog)
+				# The outer band is the game's own sole, exactly (a clean, well-defined front); the relief
+				# fades in from it.
+				var keep := smoothstep(0.84, 0.95, t)
+				if keep > 0.0: model_y = lerpf(model_y, _cap_y(Vector2(x, z), cap_tris, verts) - low, keep)
+				var y := low + model_y
+				ring_t[verts.size()] = t
 				row.append(verts.size())
 				verts.append(Vector3(x, y, z))
 				normals.append(Vector3.DOWN)
@@ -395,7 +405,10 @@ static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -
 			n = -n if cross_y > 0.0 else n
 			for v in [a, b, c]:
 				if v >= first_new: accum[v] = (accum.get(v, Vector3.ZERO) as Vector3) + n
-		for v in accum: normals[v] = _shade_normal((accum[v] as Vector3).normalized())
+		for v in accum:
+			var shaded := _shade_normal((accum[v] as Vector3).normalized())
+			# The outer band is shaded flat, like the game's own sole.
+			normals[v] = shaded.lerp(Vector3.DOWN, smoothstep(0.84, 0.95, float(ring_t.get(v, 0.0)))).normalized()
 		done += 1
 	if done == 0: return []
 	# Drop the old caps from the index list (offsets are into the original part).
@@ -423,6 +436,27 @@ static func _rings() -> Array:
 		t -= 0.018
 	out.append(0.05)
 	return out
+
+
+## The height (y) of the game's own sole cap at (x, z): inside its triangles, else its nearest vertex's.
+static func _cap_y(point: Vector2, cap_tris: Array, verts: PackedVector3Array) -> float:
+	var best := INF
+	var best_y := 0.0
+	for tri: Array in cap_tris:
+		var a: Vector3 = verts[tri[0]]; var b: Vector3 = verts[tri[1]]; var c: Vector3 = verts[tri[2]]
+		var v0 := Vector2(b.x - a.x, b.z - a.z)
+		var v1 := Vector2(c.x - a.x, c.z - a.z)
+		var v2 := Vector2(point.x - a.x, point.y - a.z)
+		var den := v0.x * v1.y - v1.x * v0.y
+		if absf(den) < 0.0000000001: continue
+		var u := (v2.x * v1.y - v1.x * v2.y) / den
+		var w := (v0.x * v2.y - v2.x * v0.y) / den
+		if u >= -0.0001 and w >= -0.0001 and u + w <= 1.0001:
+			return a.y + (b.y - a.y) * u + (c.y - a.y) * w
+		for corner in [a, b, c]:
+			var dist := Vector2(corner.x, corner.z).distance_to(point)
+			if dist < best: best = dist; best_y = corner.y
+	return best_y
 
 
 ## The game's cartoon shading draws a gentle slope as flat colour and only shows a wall whose normal tips
