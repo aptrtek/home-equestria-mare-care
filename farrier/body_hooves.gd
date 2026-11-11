@@ -442,33 +442,37 @@ static func _height(model: String, t: float, angle: float, nx: float, nz: float,
 	var from_heel := absf(wrapf(angle - PI * 0.5, -PI, PI))
 	var rim_to_edge := clampf((t - 0.86) / 0.14, 0.0, 1.0)
 	var y := edge * rim_to_edge * rim_to_edge * (3.0 - 2.0 * rim_to_edge)
-	# 0 at the heel, 1 round the toe and sides: the rim is a semicircle that fades out toward the heel
-	# (the flat end of the foot has no line, the floor just slopes up from it).
+	# 0 at the heel, 1 round the toe and sides: the rim is a semicircle that fades out toward the heel.
 	var toe := smoothstep(0.9, 2.0, from_heel)
 	var floor_y := 0.0           # how high the floor is above the rim's bottom here
 	var pad := 0.0                # how far the frog stands out of the floor (0..1 of RECESS)
 	match model:
 		"heart":
-			floor_y = RECESS * _rise(t, lerpf(0.99, 0.92, toe), lerpf(0.5, 0.12, toe))
-			if with_frog: pad = 0.8 * _inside(_heart(nx, nz, 1.45, 0.0), 0.11)
+			floor_y = RECESS * _rise(t, lerpf(0.99, 0.78, toe), lerpf(0.75, 0.14, toe))
+			if with_frog: pad = 0.8 * _inside(_heart(nx, nz, 1.3, 1.55, -0.1), 0.12) * _lift(nz, -0.75, 0.2)
 		"cushion":
 			# A dished sole with a soft rim, and a fat heart with a gentle wall.
-			floor_y = RECESS * _rise(t, lerpf(0.99, 0.86, toe), lerpf(0.5, 0.2, toe))
-			if with_frog: pad = 0.85 * _inside(_heart(nx, nz, 1.3, 0.0), 0.16)
+			floor_y = RECESS * _rise(t, lerpf(0.99, 0.74, toe), lerpf(0.75, 0.22, toe))
+			if with_frog: pad = 0.85 * _inside(_heart(nx, nz, 1.2, 1.4, -0.05), 0.16) * _lift(nz, -0.65, 0.2)
 		"arch":
 			# Two soft steps (the rim's two lines) round the toe and sides, fading out toward the heel.
-			var outer := lerpf(0.99, 0.84, toe)
-			var inner := lerpf(0.99, 0.66, toe)
-			var width := lerpf(0.5, 0.075, toe)
+			var outer := lerpf(0.99, 0.8, toe)
+			var inner := lerpf(0.99, 0.6, toe)
+			var width := lerpf(0.75, 0.09, toe)
 			floor_y = RECESS * (0.45 * _rise(t, outer, width) + 0.55 * _rise(t, inner, width))
-			if with_frog: pad = 0.8 * _inside(_heart(nx, nz, 0.62, 0.4), 0.1)
+			if with_frog: pad = 0.8 * _inside(_heart(nx, nz, 0.7, 0.8, 0.3), 0.1) * _lift(nz, -0.1, 0.25)
 		"rings":
 			# Terraced concentric rings, and a cleft slit tapering toward the toe.
-			floor_y = RECESS * (0.4 * _rise(t, 0.88, 0.09) + 0.6 * _rise(t, 0.66, 0.09))
+			floor_y = RECESS * (0.4 * _rise(t, lerpf(0.99, 0.84, toe), 0.1) + 0.6 * _rise(t, lerpf(0.99, 0.62, toe), 0.1))
 			if with_frog: floor_y += RECESS * 0.55 * _wedge(nx, nz) * smoothstep(0.68, 0.6, t)
-	pad *= smoothstep(0.8, 0.68, t)
+	pad *= smoothstep(0.97, 0.9, t)
 	y = maxf(y, floor_y - RECESS * pad)
 	return maxf(y, 0.0)
+
+
+## 0 at `from_z` (where the frog meets the rim), rising gently to 1 over `span` in z toward the heel.
+static func _lift(nz: float, from_z: float, span: float) -> float:
+	return smoothstep(from_z, from_z + span + 0.55, nz)
 
 
 ## 0 outside, 1 inside the radius `at`, over a band of `width` (a wall: steeper when narrow).
@@ -491,12 +495,12 @@ static func _smooth_min(a: float, b: float, k: float) -> float:
 
 
 ## The signed distance to a heart (negative inside): rounded lobes at the heel (+z) with a notch between
-## them, narrowing to a rounded point toward the toe. `scale` and the heel-ward shift `dz` place it.
-static func _heart(nx: float, nz: float, scale: float, dz: float) -> float:
+## them, narrowing to a rounded point toward the toe. `sx`, `sz` (widths and lengths) and the heel-ward shift `dz` place it.
+static func _heart(nx: float, nz: float, sx: float, sz: float, dz: float) -> float:
 	var right: Array[Vector2] = [Vector2(0.0, -0.45), Vector2(0.07, -0.38), Vector2(0.15, -0.25), Vector2(0.24, -0.1), Vector2(0.31, 0.05), Vector2(0.34, 0.18), Vector2(0.32, 0.3), Vector2(0.25, 0.38), Vector2(0.16, 0.39), Vector2(0.08, 0.33), Vector2(0.03, 0.22), Vector2(0.0, 0.17)]
 	var outline: Array[Vector2] = []
-	for q in right: outline.append(q * scale + Vector2(0.0, dz))
-	for k in range(right.size() - 2, 0, -1): outline.append(Vector2(-right[k].x, right[k].y) * scale + Vector2(0.0, dz))
+	for q in right: outline.append(Vector2(q.x * sx, q.y * sz + dz))
+	for k in range(right.size() - 2, 0, -1): outline.append(Vector2(-right[k].x * sx, right[k].y * sz + dz))
 	var steps := outline.size()
 	var p := Vector2(nx, nz)
 	var best := INF
