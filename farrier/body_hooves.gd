@@ -34,6 +34,10 @@ const CAP_BAND := 0.012
 const CAP_FLAT := 0.35
 ## Points per original edge segment round the new sole.
 const SUBDIVIDE := 2
+## A baked body is used only if its vertex count is within these multiples of the game's (7,625): a
+## hoof model adds detail, but a count far outside this is a different mesh, not the adult body.
+const MIN_VERTEX_RATIO := 0.75
+const MAX_VERTEX_RATIO := 2.0
 ## Ponies rebuilt per step, and the pause between steps (seconds).
 const REBUILD_BATCH := 2
 const REBUILD_PAUSE := 0.12
@@ -176,7 +180,7 @@ static func _load_arrays(path: String, game_skin: Skin, game_vertices: int) -> A
 		var b := bones[k]
 		bones[k] = map[b] if b >= 0 and b < map.size() else 0
 	arrays[Mesh.ARRAY_BONES] = bones
-	if absi(verts.size() - game_vertices) > game_vertices / 4:
+	if verts.size() < game_vertices * MIN_VERTEX_RATIO or verts.size() > game_vertices * MAX_VERTEX_RATIO:
 		print("[mare_care] baked body has %d vertices against the game's %d: hoof model not used" % [verts.size(), game_vertices])
 		return []
 	return arrays
