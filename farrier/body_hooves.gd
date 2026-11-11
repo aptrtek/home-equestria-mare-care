@@ -10,11 +10,13 @@ extends RefCounted
 ##   "mitty":    the hooves from Mitty's hooves.glb (hooves/mitty_body.res, baked by
 ##               tools/bake_mitty_hooves.gd). His skin lists the bones in a different order from the
 ##               game's, so each vertex's bone indices are remapped by bone name.
-##   "detailed", "soft": made here from the game's own mesh. Each hoof's flat sole cap is cut out and
-##               a new one sculpted in its place, joined to the same boundary: a rim at the lowest
-##               point (so she stands exactly as before and a shoe sits on it), a recessed floor, and
-##               a frog. Detailed is crisp and anatomical; Soft is smooth, with a rim that tapers to
-##               points at the heel and a soft, puffy frog.
+##   "classic", "round": line-art hooves made here from the game's own sole, which is left exactly as
+##               it is. The shapes of the references (a rim line, the frog's outline and its cleft)
+##               are added as thin raised ridges in the same mesh, skinned to the hoof: the game's
+##               cartoon shading draws a gentle surface as one flat colour, but thickens its outline
+##               around a thin ridge, so the ridges read as clean drawn lines. Classic: a closed rim
+##               line and an anatomical frog with a cleft. Round: an arch-shaped rim that is open at the
+##               heel, and a rounded, bean-shaped frog with a cleft.
 ##
 ## Switching while a world is open: every pony's hidden rig mesh uses the shared mesh, so it changes
 ## at once, but the game merges each pony's meshes into a "near" and a "far" mesh once and caches them.
@@ -24,25 +26,18 @@ extends RefCounted
 const BODY_SCENE := "res://world/characters/body_shapes/mare.scn"
 const MITTY := "res://mods/mare_care/hooves/mitty_body.res"
 const HOOF_BONES := ["pony_finger_L", "pony_finger_R", "pony_hoof_L", "pony_hoof_R"]
-const PROCEDURAL := ["detailed", "soft"]
-## How far the floor is recessed above the rim's lowest point (mesh metres), and how far the frog
-## stands out of the floor. The frog stays above the rim so a shoe never touches it.
-const RECESS := 0.005
-const FROG_RAISE := 0.003
-## The game's cartoon shading draws a flat surface as one flat colour, and shows only sharp creases (as
-## dark outline strokes). So the shape is drawn with narrow grooves, like the line-art references: one
-## along the frog's outline, one down its cleft, one along the rim's inner edge. This deep, in mesh metres.
-const GROOVE := 0.0038
+const PROCEDURAL := ["heart", "cushion", "arch", "rings"]
+## The lines: ridge width and how far each stands out of the sole (mesh metres). The sole is not
+## flat (it domes down toward the middle), so a ridge never stands out further than the sole's own
+## height above its lowest point.
+const LINE_WIDTH := 0.0026
+const LINE_HEIGHT := 0.0035
 ## The sole cap is found by flood fill from the lowest point across triangles that are all within this
-## of it, and face down more than CAP_FLAT (the fraction of a triangle's normal that points down): the
-## cap's outer ring tilts up toward the wall, so the test is loose enough to reach the wall's foot.
+## of it, and face down more than CAP_FLAT (the fraction of a triangle's normal that points down).
 const CAP_BAND := 0.012
 const CAP_FLAT := 0.35
-## Radial rings of the new sole, from the boundary inwards (fraction of the way to the centre).
-const RINGS := [1.0, 0.96, 0.92, 0.88, 0.84, 0.8, 0.765, 0.73, 0.695, 0.66, 0.625, 0.59, 0.555, 0.52, 0.485, 0.45, 0.415, 0.38, 0.345, 0.31, 0.275, 0.24, 0.2, 0.16, 0.12, 0.08, 0.04]
-## The sole's edge is only a few dozen vertices, so the rings inside it have this many times as many, to
-## carry the narrow grooves. The first ring joins the original edge with fans.
-const SUBDIVIDE := 3
+## Points per original edge segment along a line, and per run of a contour.
+const LINE_STEPS := 3
 ## Ponies rebuilt per step, and the pause between steps (seconds).
 const REBUILD_BATCH := 2
 const REBUILD_PAUSE := 0.12
@@ -94,7 +89,7 @@ static func apply(model: String, with_frog := true) -> bool:
 		arrays = _load_arrays(MITTY, body.skin, int((_original.arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()))
 		flags = 0
 	elif want in PROCEDURAL:
-		arrays = _sculpt(_original.arrays, body.skin, want, with_frog)
+		arrays = _draw_lines(_original.arrays, body.skin, want, with_frog)
 	if arrays.is_empty():
 		print("[mare_care] hoof model %s could not be built: using the game's own" % want)
 		return false
@@ -110,9 +105,7 @@ static func apply(model: String, with_frog := true) -> bool:
 
 ## How far the floor of the current hoof's sole is recessed (mesh metres): where dirt sits.
 static func floor_height() -> float:
-	if applied in PROCEDURAL: return RECESS
-	if applied == "mitty": return 0.004
-	return 0.0
+	return 0.004 if applied == "mitty" else 0.0
 
 
 # ---------------------------------------------------------------- rebuilding the ponies
@@ -192,10 +185,10 @@ static func _load_arrays(path: String, game_skin: Skin, game_vertices: int) -> A
 	return arrays
 
 
-# ---------------------------------------------------------------- Detailed and Soft
+# ---------------------------------------------------------------- Classic and Round
 
-## The game's arrays with every hoof's sole cap replaced by a sculpted one.
-static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -> Array:
+## The game's arrays with the lines of `model` added to every hoof's sole (the sole itself unchanged).
+static func _draw_lines(source: Array, skin: Skin, model: String, with_frog: bool) -> Array:
 	var arrays: Array = source.duplicate(true)
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
@@ -206,266 +199,317 @@ static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -
 	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	if verts.is_empty() or bones.is_empty() or index.is_empty() or tangents.is_empty() or uvs.is_empty(): return []
 	var per := bones.size() / verts.size()
-	var done := 0
-	var drop := {}                       # triangle start offsets to remove
 	var original_size := verts.size()
 	var original_index_size := index.size()
+	var done := 0
 	for bone_name: String in HOOF_BONES:
 		var bind := -1
 		for i in skin.get_bind_count():
 			if String(skin.get_bind_name(i)) == bone_name: bind = i
 		if bind < 0: continue
-		var mine := {}
-		var low := INF
-		for v in original_size:
-			var main := -1
-			var w := 0.0
-			for k in per:
-				if weights[v * per + k] > w: w = weights[v * per + k]; main = bones[v * per + k]
-			if main == bind:
-				mine[v] = true
-				low = minf(low, verts[v].y)
-		if mine.is_empty(): continue
-		# The sole cap: flood fill from the lowest vertex across down-facing triangles near the bottom.
-		var hoof_tris: Array[int] = []
-		var by_edge := {}
-		var seed := -1
-		var lowest_vertex := -1
-		for v in mine:
-			if lowest_vertex < 0 or verts[v].y < verts[lowest_vertex].y: lowest_vertex = v
-		for t in range(0, original_index_size, 3):
-			var a := index[t]; var b := index[t + 1]; var c := index[t + 2]
-			if not (mine.has(a) and mine.has(b) and mine.has(c)): continue
-			hoof_tris.append(t)
-			for e in [[a, b], [b, c], [c, a]]:
-				var key := Vector2i(mini(e[0], e[1]), maxi(e[0], e[1]))
-				if not by_edge.has(key): by_edge[key] = []
-				(by_edge[key] as Array).append(t)
-			if seed < 0 and (a == lowest_vertex or b == lowest_vertex or c == lowest_vertex): seed = t
-		var cap: Array[int] = []
-		var cross_y := 0.0
-		if seed >= 0:
-			var seen := {seed: true}
-			var queue: Array[int] = [seed]
-			var qi := 0
-			while qi < queue.size():
-				var t := queue[qi]
-				qi += 1
-				var a := index[t]; var b := index[t + 1]; var c := index[t + 2]
-				var n := (verts[b] - verts[a]).cross(verts[c] - verts[a])
-				if n.length() < 0.0000001: continue
-				if maxf(verts[a].y, maxf(verts[b].y, verts[c].y)) > low + CAP_BAND: continue
-				if absf(n.y) < CAP_FLAT * n.length(): continue
-				if cap.size() > 0 and signf(n.y) != signf(cross_y): continue
-				cap.append(t)
-				cross_y += n.y
-				for e in [[a, b], [b, c], [c, a]]:
-					for other in by_edge[Vector2i(mini(e[0], e[1]), maxi(e[0], e[1]))]:
-						if not seen.has(other):
-							seen[other] = true
-							queue.append(other)
-		print("[mare_care] %s: sole cap of %d triangles" % [bone_name, cap.size()])
-		if cap.size() < 20: continue
-		# Boundary: edges used by exactly one cap triangle, chained into one loop.
-		var edges := {}
-		for t in cap:
-			for e in [[index[t], index[t + 1]], [index[t + 1], index[t + 2]], [index[t + 2], index[t]]]:
-				var key := Vector2i(mini(e[0], e[1]), maxi(e[0], e[1]))
-				edges[key] = int(edges.get(key, 0)) + 1
-		var next := {}
-		for key: Vector2i in edges:
-			if int(edges[key]) != 1: continue
-			for pair in [[key.x, key.y], [key.y, key.x]]:
-				if not next.has(pair[0]): next[pair[0]] = []
-				(next[pair[0]] as Array).append(pair[1])
-		var ok := not next.is_empty()
-		for v in next:
-			if (next[v] as Array).size() != 2: ok = false
-		var loop: Array[int] = []
-		if ok:
-			var start: int = next.keys().min()
-			var prev := -1
-			var cur := start
-			for guard in next.size() + 1:
-				loop.append(cur)
-				var options: Array = next[cur]
-				var step: int = options[0] if options[0] != prev else options[1]
-				prev = cur
-				cur = step
-				if cur == start: break
-			ok = loop.size() == next.size() and loop.size() >= 12
-		if ok: print("[mare_care] %s: sole edge of %d vertices" % [bone_name, loop.size()])
-		if not ok:
-			print("[mare_care] the %s sole could not be sculpted (its edge is not one simple loop)" % bone_name)
+		var cap := _find_cap(verts, index, original_size, original_index_size, bones, weights, per, bind)
+		if cap.is_empty():
+			print("[mare_care] the %s sole was not found: no lines drawn" % bone_name)
 			continue
-		for t in cap: drop[t] = true
-		# Centre and extent of the sole.
-		var centre := Vector2.ZERO
-		for v in loop: centre += Vector2(verts[v].x, verts[v].z)
-		centre /= loop.size()
-		var half := Vector2.ZERO
-		for v in loop: half = Vector2(maxf(half.x, absf(verts[v].x - centre.x)), maxf(half.y, absf(verts[v].z - centre.y)))
-		var uv_centre := Vector2.ZERO
-		for v in loop: uv_centre += uvs[v]
-		uv_centre /= loop.size()
-		# New vertices: ring by ring from the boundary (the original loop vertices) to the centre. Inside
-		# the boundary every ring has SUBDIVIDE times as many points as the edge.
-		var n_edge := loop.size()
-		var n_ring := n_edge * SUBDIVIDE
-		# The edge's own heights are uneven; smoothed, they do not leave creases in the new sole.
-		var edge_y: Array[float] = []
-		for i in n_edge: edge_y.append(verts[loop[i]].y - low)
-		for pass_index in 3:
-			var smoothed: Array[float] = []
-			for i in n_edge: smoothed.append((edge_y[(i + n_edge - 1) % n_edge] + 2.0 * edge_y[i] + edge_y[(i + 1) % n_edge]) * 0.25)
-			edge_y = smoothed
-		var first_new := verts.size()
-		var rings: Array = []
-		for r in range(1, RINGS.size()):
-			var t: float = RINGS[r]
-			var row: Array[int] = []
-			for m in n_ring:
-				var i0 := m / SUBDIVIDE
-				var frac := float(m % SUBDIVIDE) / SUBDIVIDE
-				var a_v := loop[i0]
-				var b_v := loop[(i0 + 1) % n_edge]
-				var lv := verts[a_v].lerp(verts[b_v], frac)
-				var x := centre.x + (lv.x - centre.x) * t
-				var z := centre.y + (lv.z - centre.y) * t
-				var angle := atan2(lv.z - centre.y, lv.x - centre.x)
-				var edge_height := lerpf(edge_y[i0], edge_y[(i0 + 1) % n_edge], frac)
-				var y := low + _height(model, t, angle, (x - centre.x) / half.x, (z - centre.y) / half.y, edge_height, with_frog)
-				row.append(verts.size())
-				verts.append(Vector3(x, y, z))
-				normals.append(Vector3.DOWN)
-				tangents.append_array(PackedFloat32Array([1.0, 0.0, 0.0, 1.0]))
-				uvs.append(uvs[a_v].lerp(uvs[b_v], frac).lerp(uv_centre, 1.0 - t))
-				for k in per:
-					bones.append(bind if k == 0 else 0)
-					weights.append(1.0 if k == 0 else 0.0)
-			rings.append(row)
-		var middle := verts.size()
-		verts.append(Vector3(centre.x, low + _height(model, 0.0, 0.0, 0.0, 0.0, 0.0, with_frog), centre.y))
-		normals.append(Vector3.DOWN)
-		tangents.append_array(PackedFloat32Array([1.0, 0.0, 0.0, 1.0]))
-		uvs.append(uv_centre)
-		for k in per:
-			bones.append(bind if k == 0 else 0)
-			weights.append(1.0 if k == 0 else 0.0)
-		# Triangles, wound the way the game's own cap was.
-		var tris: Array[Vector3i] = []
-		# From the original edge to the first inner ring: a fan per edge.
-		var first: Array = rings[0]
-		for i in n_edge:
-			var oi := loop[i]
-			var oj := loop[(i + 1) % n_edge]
-			var q0: int = first[i * SUBDIVIDE]
-			var q1: int = first[i * SUBDIVIDE + 1]
-			var q2: int = first[i * SUBDIVIDE + 2]
-			var q3: int = first[((i + 1) % n_edge) * SUBDIVIDE]
-			tris.append(Vector3i(oi, oj, q2))
-			tris.append(Vector3i(oi, q2, q1))
-			tris.append(Vector3i(oi, q1, q0))
-			tris.append(Vector3i(oj, q3, q2))
-		for r in rings.size() - 1:
-			var outer: Array = rings[r]
-			var inner: Array = rings[r + 1]
-			for m in n_ring:
-				var j := (m + 1) % n_ring
-				tris.append(Vector3i(outer[m], outer[j], inner[j]))
-				tris.append(Vector3i(outer[m], inner[j], inner[m]))
-		var last: Array = rings[rings.size() - 1]
-		for m in n_ring:
-			tris.append(Vector3i(last[m], last[(m + 1) % n_ring], middle))
-		var mine_sum := 0.0
-		for tri in tris:
-			mine_sum += (verts[tri.y] - verts[tri.x]).cross(verts[tri.z] - verts[tri.x]).y
-		var reverse := (mine_sum > 0.0) != (cross_y > 0.0)
-		var accum := {}
-		for tri in tris:
-			var a := tri.x
-			var b := tri.z if reverse else tri.y
-			var c := tri.y if reverse else tri.z
-			index.append(a); index.append(b); index.append(c)
-			var n := (verts[b] - verts[a]).cross(verts[c] - verts[a])
-			# The game's cap faces down: its winding fixes which way the cross product points outward.
-			n = -n if cross_y > 0.0 else n
-			for v in [a, b, c]:
-				if v >= first_new: accum[v] = (accum.get(v, Vector3.ZERO) as Vector3) + n
-		for v in accum: normals[v] = ((accum[v] as Vector3).normalized() * 0.5 + Vector3.DOWN * 0.5).normalized()
+		var loop: Array = cap.loop
+		var centre: Vector2 = cap.centre
+		var half: Vector2 = cap.half
+		var low: float = cap.low
+		var cross_y: float = cap.cross_y
+		var tris: Array = cap.tris
+		var contours := _contours(model, with_frog, loop, verts, centre, half)
+		for contour: Dictionary in contours:
+			_ridge(contour.points, bool(contour.closed), verts, normals, tangents, uvs, bones, weights, index, per, bind, tris, low, cross_y, centre)
 		done += 1
 	if done == 0: return []
-	# Drop the old caps from the index list (offsets are into the original part).
-	var kept := PackedInt32Array()
-	for t in range(0, index.size(), 3):
-		if not (t < original_index_size and drop.has(t)):
-			kept.append(index[t]); kept.append(index[t + 1]); kept.append(index[t + 2])
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_TANGENT] = tangents
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
 	arrays[Mesh.ARRAY_BONES] = bones
 	arrays[Mesh.ARRAY_WEIGHTS] = weights
-	arrays[Mesh.ARRAY_INDEX] = kept
+	arrays[Mesh.ARRAY_INDEX] = index
 	return arrays
 
 
-## Height of the new sole above its lowest point (the rim's bottom) at a point `t` of the way from the
-## centre to the boundary, at `angle` round the hoof (0 = +X; the toe is -Z, so the heel is PI / 2),
-## in sole coordinates (nx, nz) of -1..1, where the boundary sits `edge` above the lowest point.
-static func _height(model: String, t: float, angle: float, nx: float, nz: float, edge: float, with_frog: bool) -> float:
-	var soft := model == "soft"
-	# Where the rim's flat bottom ends and the floor starts to rise. Soft's rim tapers to points at the
-	# heel (nothing there); Detailed's runs all the way round.
-	var around := 1.0
-	if soft:
-		var d := absf(wrapf(angle - PI * 0.5, -PI, PI))
-		around = clampf((d - 0.3) / 0.38, 0.0, 1.0)
-	var inner := lerpf(0.97, 0.56 if soft else 0.6, around)
-	var ramp := 0.12 if soft else 0.07
-	var rim_to_edge := clampf((t - 0.84) / 0.16, 0.0, 1.0)
-	var y := edge * rim_to_edge * rim_to_edge * (3.0 - 2.0 * rim_to_edge)
-	if t < inner:
-		var k := clampf((inner - t) / ramp, 0.0, 1.0)
-		y = maxf(y, RECESS * k * k * (3.0 - 2.0 * k))
-	# The rim's inner edge, drawn as a line (only where there is a rim).
-	y += GROOVE * 0.8 * exp(-pow((t - (inner - 0.015)) / 0.022, 2.0)) * smoothstep(0.1, 0.5, around)
-	if with_frog and t < 0.66:
-		var info: Vector2 = _soft_frog(nx, nz) if soft else _frog(nx, nz)
-		var f := info.x
-		var fade := smoothstep(0.66, 0.54, t)
-		y -= FROG_RAISE * smoothstep(0.1, 0.45, f) * fade
-		# The outline: a groove just inside the frog's contour. The cleft: a groove down its middle.
-		y += GROOVE * smoothstep(0.0, 0.035, f) * (1.0 - smoothstep(0.05, 0.14, f)) * fade
-		y += GROOVE * info.y * smoothstep(0.05, 0.3, f) * fade
-	return maxf(y, 0.0)
+## One hoof's sole cap: {tris: [[a, b, c] vertex triples], loop: edge vertices in order, centre, half,
+## low, cross_y}, or {} if it is not as expected.
+static func _find_cap(verts: PackedVector3Array, index: PackedInt32Array, vertex_count: int, index_count: int, bones: PackedInt32Array, weights: PackedFloat32Array, per: int, bind: int) -> Dictionary:
+	var mine := {}
+	var low := INF
+	var lowest := -1
+	for v in vertex_count:
+		var main := -1
+		var w := 0.0
+		for k in per:
+			if weights[v * per + k] > w: w = weights[v * per + k]; main = bones[v * per + k]
+		if main == bind:
+			mine[v] = true
+			if verts[v].y < low: low = verts[v].y; lowest = v
+	if lowest < 0: return {}
+	var by_edge := {}
+	var seed := -1
+	for t in range(0, index_count, 3):
+		var a := index[t]; var b := index[t + 1]; var c := index[t + 2]
+		if not (mine.has(a) and mine.has(b) and mine.has(c)): continue
+		for e in [[a, b], [b, c], [c, a]]:
+			var key := Vector2i(mini(e[0], e[1]), maxi(e[0], e[1]))
+			if not by_edge.has(key): by_edge[key] = []
+			(by_edge[key] as Array).append(t)
+		if seed < 0 and (a == lowest or b == lowest or c == lowest): seed = t
+	if seed < 0: return {}
+	var cap_offsets: Array[int] = []
+	var cross_y := 0.0
+	var seen := {seed: true}
+	var queue: Array[int] = [seed]
+	var qi := 0
+	while qi < queue.size():
+		var t := queue[qi]
+		qi += 1
+		var a := index[t]; var b := index[t + 1]; var c := index[t + 2]
+		var n := (verts[b] - verts[a]).cross(verts[c] - verts[a])
+		if n.length() < 0.0000001: continue
+		if maxf(verts[a].y, maxf(verts[b].y, verts[c].y)) > low + CAP_BAND: continue
+		if absf(n.y) < CAP_FLAT * n.length(): continue
+		if cap_offsets.size() > 0 and signf(n.y) != signf(cross_y): continue
+		cap_offsets.append(t)
+		cross_y += n.y
+		for e in [[a, b], [b, c], [c, a]]:
+			for other in by_edge[Vector2i(mini(e[0], e[1]), maxi(e[0], e[1]))]:
+				if not seen.has(other):
+					seen[other] = true
+					queue.append(other)
+	if cap_offsets.size() < 20: return {}
+	# Its edge: edges used by exactly one cap triangle, chained into one loop.
+	var edges := {}
+	for t in cap_offsets:
+		for e in [[index[t], index[t + 1]], [index[t + 1], index[t + 2]], [index[t + 2], index[t]]]:
+			var key := Vector2i(mini(e[0], e[1]), maxi(e[0], e[1]))
+			edges[key] = int(edges.get(key, 0)) + 1
+	var next := {}
+	for key: Vector2i in edges:
+		if int(edges[key]) != 1: continue
+		for pair in [[key.x, key.y], [key.y, key.x]]:
+			if not next.has(pair[0]): next[pair[0]] = []
+			(next[pair[0]] as Array).append(pair[1])
+	if next.is_empty(): return {}
+	for v in next:
+		if (next[v] as Array).size() != 2: return {}
+	var loop: Array = []
+	var start: int = next.keys().min()
+	var prev := -1
+	var cur := start
+	for guard in next.size() + 1:
+		loop.append(cur)
+		var options: Array = next[cur]
+		var step: int = options[0] if options[0] != prev else options[1]
+		prev = cur
+		cur = step
+		if cur == start: break
+	if loop.size() != next.size() or loop.size() < 12: return {}
+	var centre := Vector2.ZERO
+	for v in loop: centre += Vector2(verts[v].x, verts[v].z)
+	centre /= loop.size()
+	var half := Vector2.ZERO
+	for v in loop: half = Vector2(maxf(half.x, absf(verts[v].x - centre.x)), maxf(half.y, absf(verts[v].z - centre.y)))
+	var tris: Array = []
+	for t in cap_offsets: tris.append([index[t], index[t + 1], index[t + 2]])
+	return {"tris": tris, "loop": loop, "centre": centre, "half": half, "low": low, "cross_y": cross_y}
 
 
-## The anatomical frog: a bold, rounded pad, broad at the heel end where it splits into two lobes with
-## a cleft between them, narrowing toward the toe to a rounded end. Returns (0..1 height, cleft weight).
-## (nx, nz) in -1..1, toe at -z.
-static func _frog(nx: float, nz: float) -> Vector2:
-	var u := (nz + 0.52) / 1.1
-	if u <= 0.0 or u >= 1.0: return Vector2.ZERO
-	var width := 0.12 + 0.24 * pow(smoothstep(0.0, 1.0, u), 0.7)
-	var v := nx / width
-	if absf(v) >= 1.0: return Vector2.ZERO
-	var side := absf(v)
-	var split := smoothstep(0.35, 0.8, u)
-	var across := lerpf(1.0 - v * v, sin(PI * side) * 1.05, split)
-	var along := smoothstep(0.0, 0.3, u) * smoothstep(1.0, 0.86, u)
-	var h := clampf(across * along, 0.0, 1.0)
-	var cleft := exp(-pow(v / 0.1, 2.0)) * smoothstep(0.4, 0.65, u)
-	return Vector2(h, cleft)
+## The lines of a model, as polylines in the sole's own coordinates:
+## [{points: Array[Vector2] (x, z in mesh space), closed: bool}]. Each follows one of the references.
+static func _contours(model: String, with_frog: bool, loop: Array, verts: PackedVector3Array, centre: Vector2, half: Vector2) -> Array:
+	var out: Array = []
+	match model:
+		"heart":
+			# A fat heart-shaped frog on a plain sole.
+			if with_frog: _add(out, _heart(1.6), true, centre, half)
+		"cushion":
+			# A heart-shaped frog and one rim line round the toe and sides.
+			var arc := _arc(_ring(loop, verts, centre, 0.88), centre, 0.8)
+			if arc.size() > 4: out.append({"points": arc, "closed": false})
+			if with_frog: _add(out, _heart(1.3), true, centre, half)
+		"arch":
+			# A rim drawn as two lines, open at the heel and squared off there, and a bean-shaped frog.
+			var outer := _arc(_ring(loop, verts, centre, 0.9), centre, 0.95)
+			var inner := _arc(_ring(loop, verts, centre, 0.68), centre, 0.95)
+			if outer.size() > 4 and inner.size() > 4:
+				out.append({"points": outer, "closed": false})
+				out.append({"points": inner, "closed": false})
+				out.append({"points": [outer[0], inner[0]], "closed": false})
+				out.append({"points": [outer[outer.size() - 1], inner[inner.size() - 1]], "closed": false})
+			if with_frog:
+				_add(out, _bean_outline(), true, centre, half)
+				_add(out, _cleft_line(true), false, centre, half)
+		"rings":
+			# Two concentric rings and a thin cleft slit.
+			out.append({"points": _ring(loop, verts, centre, 0.84), "closed": true})
+			out.append({"points": _ring(loop, verts, centre, 0.62), "closed": true})
+			if with_frog:
+				var slit: Array[Vector2] = []
+				for k in 9: slit.append(Vector2(0.0, lerpf(-0.12, 0.26, float(k) / 8.0)))
+				_add(out, slit, false, centre, half)
+	return out
 
 
-## The soft frog: a puffy bean, rounded all round, with a gentle cleft at the heel end.
-static func _soft_frog(nx: float, nz: float) -> Vector2:
-	var u := (nz + 0.52) / 1.1
-	if u <= 0.0 or u >= 1.0: return Vector2.ZERO
-	var width := 0.1 + 0.2 * pow(sin(PI * clampf(pow(u, 0.9), 0.0, 1.0)), 0.6)
-	var v := nx / width
-	if absf(v) >= 1.0: return Vector2.ZERO
-	var h := clampf((1.0 - v * v) * pow(sin(PI * clampf(u, 0.0, 1.0)), 0.8), 0.0, 1.0)
-	var cleft := exp(-pow(v / 0.1, 2.0)) * smoothstep(0.55, 0.85, u) * 0.7
-	return Vector2(h, cleft)
+## Lines in the sole's fractions (x and z in half-widths about the centre) added as mesh-space contours.
+static func _add(out: Array, shape: Array[Vector2], closed: bool, centre: Vector2, half: Vector2) -> void:
+	var points: Array[Vector2] = []
+	for p: Vector2 in shape: points.append(Vector2(centre.x + p.x * half.x, centre.y + p.y * half.y))
+	out.append({"points": points, "closed": closed})
+
+
+## The sole's own outline, pulled in to `scale` of the way to the centre, smoothed to a clean curve.
+static func _ring(loop: Array, verts: PackedVector3Array, centre: Vector2, scale: float) -> Array[Vector2]:
+	var around: Array[Vector2] = []
+	for i in loop.size():
+		var a: Vector3 = verts[loop[i]]
+		var b: Vector3 = verts[loop[(i + 1) % loop.size()]]
+		for k in LINE_STEPS:
+			var p := a.lerp(b, float(k) / LINE_STEPS)
+			around.append(centre + (Vector2(p.x, p.z) - centre) * scale)
+	var n := around.size()
+	for pass_index in 6:
+		var smoothed: Array[Vector2] = []
+		for i in n: smoothed.append((around[(i + n - 2) % n] + around[(i + n - 1) % n] * 2.0 + around[i] * 3.0 + around[(i + 1) % n] * 2.0 + around[(i + 2) % n]) / 9.0)
+		around = smoothed
+	return around
+
+
+## The longest run of the ring that is at least `gap` radians from the heel (+z): an arch open at the heel.
+static func _arc(around: Array[Vector2], centre: Vector2, gap: float) -> Array[Vector2]:
+	var run: Array[Vector2] = []
+	var best: Array[Vector2] = []
+	for pass_index in 2:
+		for p in around:
+			var d := p - centre
+			if absf(wrapf(atan2(d.y, d.x) - PI * 0.5, -PI, PI)) >= gap: run.append(p)
+			else:
+				if run.size() > best.size(): best = run.duplicate()
+				run.clear()
+	if run.size() > best.size(): best = run.duplicate()
+	return best
+
+
+## A heart: rounded lobes at the heel (+z) with a notch between them, narrowing to a rounded point
+## toward the toe.
+static func _heart(scale: float) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	var steps := 36
+	for k in steps:
+		var t := TAU * float(k) / steps
+		var hx := 16.0 * pow(sin(t), 3.0)
+		var hy := 13.0 * cos(t) - 5.0 * cos(2.0 * t) - 2.0 * cos(3.0 * t) - cos(4.0 * t)
+		out.append(Vector2(hx / 16.0 * 0.4, (hy + 2.5) / 14.5 * 0.45) * scale)
+	return out
+
+
+## The frog's outline, anatomical (the references): a rounded point toward the toe widening to two
+## rounded heel bulbs with a notch between them. In sole coordinates, half-widths and half-lengths
+## (x across, z toward the heel; the toe is at -z).
+static func _frog_outline() -> Array[Vector2]:
+	var right: Array[Vector2] = [
+		Vector2(0.0, -0.5), Vector2(0.06, -0.485), Vector2(0.11, -0.43), Vector2(0.14, -0.34), Vector2(0.17, -0.22),
+		Vector2(0.21, -0.08), Vector2(0.26, 0.06), Vector2(0.3, 0.2), Vector2(0.33, 0.32), Vector2(0.34, 0.43),
+		Vector2(0.32, 0.52), Vector2(0.26, 0.565), Vector2(0.18, 0.56), Vector2(0.1, 0.52), Vector2(0.05, 0.46), Vector2(0.0, 0.4)]
+	return _mirrored(right)
+
+
+## The round model's frog: a bean, rounded all round, with a notch at the heel.
+static func _bean_outline() -> Array[Vector2]:
+	var right: Array[Vector2] = []
+	var n := 12
+	for i in n + 1:
+		var a := PI * float(i) / n     # toe (0) round the right side to the heel (PI)
+		var angle := -PI * 0.5 + a
+		right.append(Vector2(cos(angle) * 0.3, 0.02 + sin(angle) * 0.5))
+	right[n] = Vector2(0.03, 0.43)     # the notch
+	return _mirrored(right)
+
+
+## A right-hand half run from the toe (x = 0) to the heel notch (x = 0), as one closed outline.
+static func _mirrored(right: Array[Vector2]) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for p in right: out.append(p)
+	for i in range(right.size() - 2, 0, -1): out.append(Vector2(-right[i].x, right[i].y))
+	return out
+
+
+## The cleft: a line from the heel notch up the frog's middle.
+static func _cleft_line(round_model: bool) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	var steps := 8
+	var from_z := 0.42 if not round_model else 0.43
+	var to_z := -0.08 if not round_model else 0.0
+	for i in steps + 1: out.append(Vector2(0.0, lerpf(from_z, to_z, float(i) / steps)))
+	return out
+
+
+## The sole's height (y) at (x, z), from the cap's triangles; the nearest vertex's if outside them.
+static func _surface_y(point: Vector2, tris: Array, verts: PackedVector3Array) -> float:
+	var best := INF
+	var best_y := 0.0
+	for tri: Array in tris:
+		var a: Vector3 = verts[tri[0]]; var b: Vector3 = verts[tri[1]]; var c: Vector3 = verts[tri[2]]
+		var v0 := Vector2(b.x - a.x, b.z - a.z)
+		var v1 := Vector2(c.x - a.x, c.z - a.z)
+		var v2 := Vector2(point.x - a.x, point.y - a.z)
+		var den := v0.x * v1.y - v1.x * v0.y
+		if absf(den) < 0.0000000001: continue
+		var u := (v2.x * v1.y - v1.x * v2.y) / den
+		var w := (v0.x * v2.y - v2.x * v0.y) / den
+		if u >= -0.0001 and w >= -0.0001 and u + w <= 1.0001:
+			return a.y + (b.y - a.y) * u + (c.y - a.y) * w
+		for corner in [a, b, c]:
+			var dist := Vector2(corner.x, corner.z).distance_to(point)
+			if dist < best: best = dist; best_y = corner.y
+	return best_y
+
+
+## Adds a thin raised ridge along a polyline on the sole, wound the way the game's own sole is.
+static func _ridge(points: Array, closed: bool, verts: PackedVector3Array, normals: PackedVector3Array, tangents: PackedFloat32Array, uvs: PackedVector2Array, bones: PackedInt32Array, weights: PackedFloat32Array, index: PackedInt32Array, per: int, bind: int, tris: Array, low: float, cross_y: float, centre: Vector2) -> void:
+	var n := points.size()
+	if n < 2: return
+	var sections: Array = []   # per point: [left, peak, right] vertex indices
+	var uv_centre := Vector2.ZERO
+	for tri: Array in tris: uv_centre += uvs[tri[0]]
+	uv_centre /= tris.size()
+	for i in n:
+		var here: Vector2 = points[i]
+		var before: Vector2 = points[(i + n - 1) % n] if (closed or i > 0) else here
+		var after: Vector2 = points[(i + 1) % n] if (closed or i < n - 1) else here
+		var along := (after - before)
+		if along.length() < 0.0000001: along = Vector2(1, 0)
+		along = along.normalized()
+		var perp := Vector2(-along.y, along.x)
+		var surface := _surface_y(here, tris, verts)
+		var height := LINE_HEIGHT
+		var row: Array[int] = []
+		for part in 3:
+			var side := (1.0 if part == 0 else (0.0 if part == 1 else -1.0))
+			var at := here + perp * (LINE_WIDTH * 0.5) * side
+			var y := surface - (height if part == 1 else 0.0)
+			row.append(verts.size())
+			verts.append(Vector3(at.x, y, at.y))
+			var nrm := Vector3(perp.x * side * 0.6, -0.8, perp.y * side * 0.6).normalized()
+			normals.append(nrm)
+			tangents.append_array(PackedFloat32Array([1.0, 0.0, 0.0, 1.0]))
+			uvs.append(uv_centre)
+			for k in per:
+				bones.append(bind if k == 0 else 0)
+				weights.append(1.0 if k == 0 else 0.0)
+		sections.append(row)
+	var last := n if closed else n - 1
+	var quads: Array = []
+	for i in last:
+		var a: Array = sections[i]
+		var b: Array = sections[(i + 1) % n]
+		quads.append([a[0], a[1], b[1], b[0]])
+		quads.append([a[1], a[2], b[2], b[1]])
+	for quad: Array in quads:
+		for pair in [[quad[0], quad[1], quad[2]], [quad[0], quad[2], quad[3]]]:
+			var a: int = pair[0]; var b: int = pair[1]; var c: int = pair[2]
+			# Both ways round, so the ridge shows whichever way the line runs.
+			index.append(a); index.append(b); index.append(c)
+			index.append(a); index.append(c); index.append(b)

@@ -79,12 +79,12 @@ away and are saved for next time.
 
 - **Hoof model:** choose how a hoof looks from below, with a thumbnail of each. The hooves are
   part of the pony's body mesh, so they move, shade and cast shadows with her. **Original** is the
-  game's own plain sole. **Detailed** has a rim, a recessed sole and a crisp, anatomical frog.
-  **Soft** is smooth and cartoon-style: a thick rounded lip that tapers to points at the heels,
-  around a glossy dished sole and a soft, puffy frog. **Mitty's** has the hooves modelled by Mitty
-  (see Contributors). Shoes sit on the rim with any of them. Changing the model rebuilds every
-  pony in the world, which can cause a brief hitch, and the page says so while it happens.
-- **Show the frog:** switch the frog off if you'd rather not see it (Detailed and Soft).
+  game's own plain sole. **Heart**, **Cushion**, **Arch** and **Rings** are line-art hooves drawn as
+  thin raised lines: a fat heart frog; a heart frog with one rim line; a two-line rim open at the
+  heel with a bean frog; and concentric rings with a cleft slit. **Mitty's** has the hooves modelled
+  by Mitty (see Contributors). Shoes sit on any of them. Changing the model rebuilds every pony in
+  the world, which can cause a brief hitch, and the page says so while it happens.
+- **Show the frog:** switch the frog and its cleft off if you'd rather not see them (Heart, Cushion, Arch and Rings).
 - **Hooves get dirty:** switch this off and hooves never need picking, trimming or oiling, and
   shoes never work loose. The tools, shoes and hoof models all still work, so you can
   keep just the horseshoes and the new hooves.

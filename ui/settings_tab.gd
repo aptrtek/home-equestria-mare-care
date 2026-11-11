@@ -220,7 +220,7 @@ func _build(entry: Dictionary) -> void:
 
 	_heading(list, "Hooves", font)
 	_model_chooser(entry)
-	_toggle_row(entry, "Show the frog", "The pad on the underside of the hoof (Detailed and Soft). Changing it rebuilds the ponies too.", CARE.show_frog,
+	_toggle_row(entry, "Show the frog", "The frog and its cleft, drawn on the underside of the hoof (Classic and Round). Changing it rebuilds the ponies too.", CARE.show_frog,
 		_on_frog.bind(entry), "frog")
 
 	_heading(list, "Care upkeep", font)

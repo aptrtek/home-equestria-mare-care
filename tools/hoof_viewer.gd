@@ -15,7 +15,7 @@ const BODY := preload("res://mods/mare_care/farrier/body_hooves.gd")
 const MODELS := preload("res://mods/mare_care/farrier/models.gd")
 const HOOVES := preload("res://mods/mare_care/farrier/hooves.gd")
 const LEG := "RL"
-const LABELS := {"original": "Original", "detailed": "Detailed", "soft": "Soft", "mitty": "Mitty's"}
+const LABELS := {"original": "Original", "heart": "Heart", "cushion": "Cushion", "arch": "Arch", "rings": "Rings", "mitty": "Mitty's"}
 const CELL := Vector2i(560, 480)
 
 var world: Node3D
@@ -31,10 +31,12 @@ func _initialize() -> void:
 func run() -> void:
 	root.size = CELL
 	_build_world()
-	var wanted: PackedStringArray = OS.get_environment("VIEW_MODELS").split(",") if OS.get_environment("VIEW_MODELS") != "" else PackedStringArray(["original", "detailed", "soft", "mitty"])
+	var wanted: PackedStringArray = OS.get_environment("VIEW_MODELS").split(",") if OS.get_environment("VIEW_MODELS") != "" else PackedStringArray(["original", "heart", "cushion", "arch", "rings", "mitty"])
 	var shots := {}
-	for model in wanted:
-		BODY.apply(model, true)
+	await _new_pony()   # warm-up: the first pony built is drawn from the game's cached original mesh
+	for entry in wanted:
+		var model: String = entry.get_slice(":", 0)
+		BODY.apply(model, OS.get_environment("VIEW_NOFROG") == "")   # VIEW_NOFROG=1: the sole without its frog
 		BODY.clear_caches()
 		await _new_pony()
 		for shod in [false, true]:
@@ -44,8 +46,8 @@ func run() -> void:
 				await process_frame
 			await RenderingServer.frame_post_draw
 			await RenderingServer.frame_post_draw
-			shots[model + ("_shod" if shod else "_bare")] = root.get_texture().get_image()
-		print("[view] ", model, " done")
+			shots[entry + ("_shod" if shod else "_bare")] = root.get_texture().get_image()
+		print("[view] ", entry, " done")
 	_thumbs(wanted, shots)
 	await _compose(wanted, shots)
 	quit()
@@ -122,6 +124,7 @@ func _thumbs(models: PackedStringArray, shots: Dictionary) -> void:
 	var folder := OS.get_environment("VIEW_THUMBS")
 	if folder == "": return
 	for model in models:
+		if ":" in model: continue
 		var img: Image = (shots[model + "_bare"] as Image).duplicate()
 		img = img.get_region(Rect2i(0, 30, CELL.x, CELL.x * 3 / 4))
 		img.resize(448, 336, Image.INTERPOLATE_LANCZOS)
@@ -141,7 +144,7 @@ func _compose(models: PackedStringArray, shots: Dictionary) -> void:
 	for i in models.size():
 		var x := margin + i * (CELL.x + margin)
 		var label := Label.new()
-		label.text = str(LABELS.get(models[i], models[i]))
+		label.text = str(LABELS.get(models[i].get_slice(":", 0), models[i])) + ((" " + models[i].get_slice(":", 1)) if ":" in models[i] else "")
 		label.add_theme_font_size_override("font_size", 34)
 		label.position = Vector2(x + 4, 8)
 		root.add_child(label)

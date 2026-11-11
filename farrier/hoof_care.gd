@@ -19,9 +19,8 @@ extends RefCounted
 ##   [pay]
 ##   enabled=true     some mares pay in bits for hoof care (never a wife)
 ##   [hooves]
-##   model="detailed" the hoof model: "original" (the game's own), "detailed" (rim, sole, frog) or
-##                    "soft" (a smooth, glossy dished sole) or "mitty" (hooves built into the body,
-##                    by Mitty)
+##   model="original" the hoof model: "original" (the game's own), "heart", "cushion", "arch" or "rings" (line-art
+##                    hooves) or "mitty" (hooves built into the body, by Mitty)
 ##   show_frog=true   the frog on the underside of a lifted hoof (detailed model only)
 ##   [brushing]
 ##   sparkle=true     a freshly brushed mane or tail sparkles
@@ -31,8 +30,8 @@ const SETTINGS := "settings.cfg"
 const JOBS := ["pick", "trim", "shoe", "oil"]
 const DEFAULT_DAYS := 7.0
 const STAMP := {"pick": "picked", "trim": "trimmed", "shoe": "shod", "oil": "oiled"}
-const MODELS := ["original", "detailed", "soft", "mitty"]
-const DEFAULT_MODEL := "detailed"
+const MODELS := ["original", "heart", "cushion", "arch", "rings", "mitty"]
+const DEFAULT_MODEL := "original"
 const DEFAULT_SPARKLE_MINUTES := 10.0
 
 static var _days := {}
@@ -108,11 +107,7 @@ static func days(job: String) -> float:
 ## True when the hoof model draws its own underside as pieces on the hoof (Detailed, Soft). The
 ## Original and Mitty's models have none: Mitty's hooves are part of the body mesh itself.
 static func underside() -> bool:
-	return hoof_model == "detailed" or hoof_model == "soft"
-
-
-static func detailed() -> bool:
-	return hoof_model == "detailed"
+	return hoof_model in ["heart", "cushion", "arch", "rings"]
 
 
 static func now() -> float:
