@@ -21,10 +21,14 @@ extends RefCounted
 ##   [hooves]
 ##   model="original" the hoof model: "original" (the game's own), "heart", "cushion", "arch" or "rings" (line-art
 ##                    hooves) or "mitty" (hooves built into the body, by Mitty)
-##   show_frog=true   the frog on the underside of a lifted hoof (detailed model only)
+##   show_frog=true   the frog on the underside of a lifted hoof (heart, cushion, arch, rings)
+##   [extras]
+##   hoof_licking=false   lick her lifted hooves clean until they sparkle (off unless switched on)
 ##   [brushing]
 ##   sparkle=true     a freshly brushed mane or tail sparkles
 ##   sparkle_minutes=10.0   for how long
+##   hoof_sparkle=true      an oiled or licked-clean hoof sparkles
+##   hoof_sparkle_minutes=5.0   for how long
 
 const SETTINGS := "settings.cfg"
 const JOBS := ["pick", "trim", "shoe", "oil"]
@@ -33,6 +37,7 @@ const STAMP := {"pick": "picked", "trim": "trimmed", "shoe": "shod", "oil": "oil
 const MODELS := ["original", "heart", "cushion", "arch", "rings", "mitty"]
 const DEFAULT_MODEL := "original"
 const DEFAULT_SPARKLE_MINUTES := 10.0
+const DEFAULT_HOOF_SPARKLE_MINUTES := 5.0
 
 static var _days := {}
 static var dirt_enabled := true
@@ -41,7 +46,11 @@ static var pay_enabled := true
 static var show_frog := true
 static var hoof_model := DEFAULT_MODEL
 static var sparkle_on := true
+## Licking her hooves clean: off unless the player switches it on.
+static var lick_enabled := false
 static var sparkle_minutes := DEFAULT_SPARKLE_MINUTES
+static var hoof_sparkle_on := true
+static var hoof_sparkle_minutes := DEFAULT_HOOF_SPARKLE_MINUTES
 
 
 static func _path(mod_id: String) -> String:
@@ -61,7 +70,10 @@ static func load_settings(mod_id: String) -> void:
 	var model := str(config.get_value("hooves", "model", DEFAULT_MODEL))
 	hoof_model = model if model in MODELS else DEFAULT_MODEL
 	sparkle_on = bool(config.get_value("brushing", "sparkle", true))
+	lick_enabled = bool(config.get_value("extras", "hoof_licking", false))
 	sparkle_minutes = clampf(float(config.get_value("brushing", "sparkle_minutes", DEFAULT_SPARKLE_MINUTES)), 1.0, 60.0)
+	hoof_sparkle_on = bool(config.get_value("brushing", "hoof_sparkle", true))
+	hoof_sparkle_minutes = clampf(float(config.get_value("brushing", "hoof_sparkle_minutes", DEFAULT_HOOF_SPARKLE_MINUTES)), 1.0, 60.0)
 	if not loaded:
 		save_settings(mod_id)
 	print("[mare_care] settings: hooves get dirty %s, upkeep days %s, pay %s, hoof model %s, frog %s, sparkle %s (%s min)  (%s)" % [
@@ -79,7 +91,10 @@ static func save_settings(mod_id: String) -> void:
 	config.set_value("hooves", "model", hoof_model)
 	config.set_value("hooves", "show_frog", show_frog)
 	config.set_value("brushing", "sparkle", sparkle_on)
+	config.set_value("extras", "hoof_licking", lick_enabled)
 	config.set_value("brushing", "sparkle_minutes", sparkle_minutes)
+	config.set_value("brushing", "hoof_sparkle", hoof_sparkle_on)
+	config.set_value("brushing", "hoof_sparkle_minutes", hoof_sparkle_minutes)
 	config.save(_path(mod_id))
 
 
@@ -92,7 +107,10 @@ static func reset_settings(mod_id: String) -> void:
 	show_frog = true
 	hoof_model = DEFAULT_MODEL
 	sparkle_on = true
+	lick_enabled = false
 	sparkle_minutes = DEFAULT_SPARKLE_MINUTES
+	hoof_sparkle_on = true
+	hoof_sparkle_minutes = DEFAULT_HOOF_SPARKLE_MINUTES
 	save_settings(mod_id)
 
 

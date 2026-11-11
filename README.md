@@ -34,7 +34,8 @@ out, and you can use them on any willing pony.
    - **Hoof oil:** work it in, and the hoof shines for a few minutes.
    - **Hoof massage:** with nothing in your hand, hold the mouse button on her lifted hoof (desktop),
      or rub it slowly with your hand (VR). She relaxes into it. Grown mares only.
-   - **Licking her hooves clean:** with nothing in your hand, get your face right up to her lifted
+   - **Licking her hooves clean** (off by default: switch on **Hoof licking** in the settings):
+     with nothing in your hand, get your face right up to her lifted
      hoof and hold the mouse button (desktop), or lick it slowly in VR (each fresh touch of your
      mouth is a kiss that helps too). The dirt comes away as you go, and once it's clean the hoof
      sparkles. It counts as picking, and nobody pays for it. Some mares are bemused, shy ones get
@@ -108,7 +109,11 @@ away and are saved for next time.
 - **How long until care is due again:** one slider each for dirt building up, a trim wearing
   off, shoes working loose and the oil wearing off, from every day to every 30 days, or never
   again (once done, it stays done). These are in-game days. The default is 7.
-- **Mares pay for hoof care**, and **sparkle after brushing** with how long it lasts.
+- **Mares pay for hoof care.**
+- **Sparkle:** whether a freshly brushed mane or tail sparkles, and whether an oiled or
+  licked-clean hoof does, each with how long it lasts (1 to 30 minutes).
+- **Hoof licking:** off by default. Switch it on to lick her hooves clean until they sparkle (see
+  Farrier above).
 - **Reset to defaults.**
 
 When a job comes due the hint on her leg says so (for example "needs: picking, a trim, oil"), and
@@ -153,9 +158,14 @@ enabled=true
 model="original"
 show_frog=true
 
+[extras]
+hoof_licking=false
+
 [brushing]
 sparkle=true
 sparkle_minutes=10.0
+hoof_sparkle=true
+hoof_sparkle_minutes=5.0
 ```
 
 ### What it does for her

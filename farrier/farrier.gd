@@ -90,7 +90,6 @@ const LEAVE_DISTANCE := 2.6
 const IDLE_SECONDS := 30.0
 ## Stones and dirt in a hoof that needs picking.
 const PIECES := Vector2i(3, 5)
-const OIL_SHINE := 300.0
 ## Bits for each job on a hoof that needed it (a new shoe by its style; re-nailing a loose one is
 ## "reset"). Paid when she puts the hoof down, by the mares who pay (see _pays()).
 const PRICES := {"pick": 2, "trim": 4, "oil": 2, "reset": 3, "massage": 3,
@@ -227,7 +226,7 @@ func _desktop_target() -> Dictionary:
 		tool = {"item": null, "kind": "massage"}
 	var camera: Camera3D = _inventory().get("camera")
 	if camera == null: return {}
-	if tool.kind == "massage" and _mouth_near(camera, LICK_REACH): tool.kind = "lick"
+	if tool.kind == "massage" and CARE.lick_enabled and _mouth_near(camera, LICK_REACH): tool.kind = "lick"
 	var origin := camera.global_position
 	var forward := -camera.global_basis.z
 	var hit := _aim_hoof(origin, forward, tool.kind)
@@ -489,9 +488,9 @@ func _work(kind: String, hit: Dictionary, dt: float, held: bool) -> void:
 			_rhythm("oil", hit.point, 0.6, 1.0)
 			if float(_session.oil) >= 1.0:
 				_done("oil")
-				SPARKLE.of(pony).call("shine_bone", "hoof_" + str(_session.leg), HOOVES.BONES[_session.leg], OIL_SHINE)
+				_hoof_sparkle(pony)
 		"lick":
-			if float(_session.get("lick", 0.0)) >= 1.0: return
+			if not CARE.lick_enabled or float(_session.get("lick", 0.0)) >= 1.0: return
 			_lick_progress(float(hit.get("boost", dt / LICK_SECONDS)), hit.point)
 		"massage":
 			if float(_session.get("massage", 0.0)) >= 1.0: return
@@ -886,7 +885,7 @@ func _licked() -> void:
 	var record: Dictionary = _session.record
 	if CARE.due(record, "pick"): CARE.mark(mod_id, record, "pick")
 	_shoes().refresh(pony)
-	SPARKLE.of(pony).call("shine_bone", "hoof_" + str(_session.leg), HOOVES.BONES[_session.leg], OIL_SHINE)
+	_hoof_sparkle(pony)
 	var now := Time.get_unix_time_from_system()
 	var fresh := now - float(record.get("licked_at", 0.0)) >= LICK_COOLDOWN
 	record["licked_at"] = now
@@ -902,6 +901,12 @@ func _licked() -> void:
 	var mood := {"dominant": "happy", "shy": "shy", "neutral": "amused"}[way] as String
 	var friendship := (2 if way == "dominant" else 1) + (1 if all_four else 0)
 	_grateful(pony, friendship, str(LICK_THOUGHTS[way]) if all_four else "", LICK_MEMORY if all_four else "", mood)
+
+
+## The lifted hoof sparkles (after oiling or licking), for as long as the settings say.
+func _hoof_sparkle(pony: Node3D) -> void:
+	if not CARE.hoof_sparkle_on: return
+	SPARKLE.of(pony).call("shine_bone", "hoof_" + str(_session.leg), HOOVES.BONES[_session.leg], CARE.hoof_sparkle_minutes * 60.0)
 
 
 ## How she takes having her hooves licked: "dominant" (she loves it), "shy" or "neutral".
@@ -1033,7 +1038,7 @@ func _sense_vr(game: Node, dt: float) -> void:
 ## VR: your mouth on her lifted sole. Moving slowly over it licks it; each fresh touch is a kiss.
 func _sense_vr_lick(dt: float) -> void:
 	_kiss_clock = maxf(0.0, _kiss_clock - dt)
-	if _session.is_empty() or not _can_massage(_session.pony):
+	if _session.is_empty() or not _can_massage(_session.pony) or not CARE.lick_enabled:
 		_mouth_on = false
 		return
 	var camera := get_viewport().get_camera_3d()

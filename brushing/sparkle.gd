@@ -26,6 +26,8 @@ const MAX_POINTS := 700
 const DRAW_DISTANCE := 18.0
 const TINTS := [Color(1.0, 1.0, 1.0), Color(1.0, 0.95, 0.8), Color(0.88, 0.95, 1.0), Color(1.0, 0.88, 0.97)]
 
+## Each part's full sparkle time (seconds), so it fades out over the end of its own time.
+var _total := {}
 var pony: Node3D
 ## part -> seconds of sparkle left
 var _left := {"mane": 0.0, "tail": 0.0}
@@ -59,6 +61,7 @@ static func of(who: Node3D) -> Node:
 func shine(part: String) -> void:
 	if not CARE.sparkle_on: return
 	_left[part] = CARE.sparkle_minutes * 60.0
+	_total[part] = CARE.sparkle_minutes * 60.0
 
 
 ## Glints on one bone's part of her body for `seconds` (the farrier's hoof oil: part "hoof_FL" on
@@ -73,6 +76,7 @@ func shine_bone(part: String, bone_name: String, seconds: float, count := 5, siz
 		for node: Node in model.find_children("*", "MeshInstance3D", true, false):
 			if String(node.name) == "MareBody": _add(part, node as MeshInstance3D, skeleton, bone)
 	_left[part] = seconds
+	_total[part] = seconds
 	_count[part] = count
 
 
@@ -125,7 +129,7 @@ func _process(delta: float) -> void:
 
 ## How strongly a part sparkles now: 1 for most of SECONDS, easing to 0 over the last FADE.
 func _strength(part: String) -> float:
-	return clampf(float(_left.get(part, 0.0)) / minf(FADE, CARE.sparkle_minutes * 60.0 * 0.3), 0.0, 1.0)
+	return clampf(float(_left.get(part, 0.0)) / minf(FADE, float(_total.get(part, CARE.sparkle_minutes * 60.0)) * 0.3), 0.0, 1.0)
 
 
 func _spawn(eye: Vector3) -> void:

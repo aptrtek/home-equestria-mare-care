@@ -237,11 +237,19 @@ func _build(entry: Dictionary) -> void:
 	_toggle_row(entry, "Mares pay for hoof care", "Some mares pay in bits for the jobs a hoof needed. Never your wife.", CARE.pay_enabled,
 		_on_pay.bind(entry), "pay")
 
-	_heading(list, "Brushing", font)
+	_heading(list, "Extras", font)
+	_toggle_row(entry, "Hoof licking", "Lick her lifted hooves clean until they sparkle: get your face right up to the hoof and hold click (desktop), or lick it slowly (VR). Grown mares only. Off by default.", CARE.lick_enabled,
+		_on_lick.bind(entry), "lick")
+
+	_heading(list, "Sparkle", font)
 	_toggle_row(entry, "Sparkle after brushing", "A freshly brushed mane or tail sparkles for a while.", CARE.sparkle_on,
 		_on_sparkle.bind(entry), "sparkle")
-	_slider_row(entry, "How long it sparkles", "", 1.0, 30.0, 1.0, CARE.sparkle_minutes,
+	_slider_row(entry, "How long a mane or tail sparkles", "", 1.0, 30.0, 1.0, CARE.sparkle_minutes,
 		_describe_minutes, _on_sparkle_minutes.bind(entry), "sparkle_minutes")
+	_toggle_row(entry, "Hooves sparkle", "An oiled hoof, or one licked clean, sparkles for a while.", CARE.hoof_sparkle_on,
+		_on_hoof_sparkle.bind(entry), "hoof_sparkle")
+	_slider_row(entry, "How long a hoof sparkles", "", 1.0, 30.0, 1.0, CARE.hoof_sparkle_minutes,
+		_describe_minutes, _on_hoof_sparkle_minutes.bind(entry), "hoof_sparkle_minutes")
 
 	var reset := Button.new()
 	reset.text = "Reset to defaults"
@@ -315,8 +323,23 @@ func _on_pay(on: bool, entry: Dictionary) -> void:
 	_changed(entry)
 
 
+func _on_lick(on: bool, entry: Dictionary) -> void:
+	CARE.lick_enabled = on
+	_changed(entry)
+
+
 func _on_sparkle(on: bool, entry: Dictionary) -> void:
 	CARE.sparkle_on = on
+	_changed(entry)
+
+
+func _on_hoof_sparkle(on: bool, entry: Dictionary) -> void:
+	CARE.hoof_sparkle_on = on
+	_changed(entry)
+
+
+func _on_hoof_sparkle_minutes(value: float, entry: Dictionary) -> void:
+	CARE.hoof_sparkle_minutes = value
 	_changed(entry)
 
 
@@ -388,6 +411,7 @@ func _sync(entry: Dictionary) -> void:
 		var key := "days_" + str(job[0])
 		if refs.has(key): (refs[key] as HSlider).editable = CARE.dirt_enabled
 	if refs.has("dirt"): (refs.dirt as CheckButton).set_pressed_no_signal(CARE.dirt_enabled)
+	if refs.has("lick"): (refs.lick as CheckButton).set_pressed_no_signal(CARE.lick_enabled)
 	if refs.has("spa"):
 		(refs.spa as CheckButton).disabled = not CARE.dirt_enabled
 		(refs.spa as CheckButton).set_pressed_no_signal(CARE.spa_care)
