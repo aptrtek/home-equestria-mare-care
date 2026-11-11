@@ -299,6 +299,21 @@ static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -
 		centre /= loop.size()
 		var half := Vector2.ZERO
 		for v in loop: half = Vector2(maxf(half.x, absf(verts[v].x - centre.x)), maxf(half.y, absf(verts[v].z - centre.y)))
+		# The toe's edge goes right down to the lowest point (the game's sole curves up a few millimetres
+		# there): its edge vertices, and any others at the same place (so the wall stays closed), are
+		# lowered, fully at the front and fading out round the sides.
+		var same_place := {}
+		for v in mine:
+			var key := Vector3i(roundi(verts[v].x * 100000.0), roundi(verts[v].y * 100000.0), roundi(verts[v].z * 100000.0))
+			if not same_place.has(key): same_place[key] = []
+			(same_place[key] as Array).append(v)
+		for v in loop:
+			var from_heel := absf(wrapf(atan2(verts[v].z - centre.y, verts[v].x - centre.x) - PI * 0.5, -PI, PI))
+			var front := smoothstep(1.3, 2.4, from_heel)
+			if front <= 0.0: continue
+			var key := Vector3i(roundi(verts[v].x * 100000.0), roundi(verts[v].y * 100000.0), roundi(verts[v].z * 100000.0))
+			var lowered := lerpf(verts[v].y, low, front)
+			for w in same_place.get(key, [v]): verts[w] = Vector3(verts[w].x, lowered, verts[w].z)
 		var uv_centre := Vector2.ZERO
 		for v in loop: uv_centre += uvs[v]
 		uv_centre /= loop.size()
