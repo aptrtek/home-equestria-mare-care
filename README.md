@@ -108,7 +108,8 @@ away and are saved for next time.
 - **The spa cares for hooves:** see below.
 - **How long until care is due again:** one slider each for dirt building up, a trim wearing
   off, shoes working loose and the oil wearing off, from every day to every 30 days, or never
-  again (once done, it stays done). These are in-game days. The default is 7.
+  again (once done, it stays done). These are in-game days. The default is 7. A shod hoof takes
+  twice as long to get dirty as the slider says, since the shoe keeps the sole up off the ground.
 - **Mares pay for hoof care.**
 - **Sparkle:** whether a freshly brushed mane or tail sparkles, and whether an oiled or
   licked-clean hoof does, each with how long it lasts (1 to 30 minutes).

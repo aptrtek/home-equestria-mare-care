@@ -21,7 +21,7 @@ const TITLE := "Mare Care"
 const ICON_KIND := "horseshoe"
 const SAVE_DELAY := 0.5
 const UPKEEP := [
-	["pick", "Hooves get dirty after", "Stones and dirt build up again this long after a hoof was cleaned out."],
+	["pick", "Hooves get dirty after", "Stones and dirt build up again this long after a hoof was cleaned out. A shod hoof takes twice as long."],
 	["trim", "Hooves need trimming after", "How long a trim lasts."],
 	["shoe", "Shoes work loose after", "How long before a shoe needs its nails reset."],
 	["oil", "Hooves need oil after", "How long the oil lasts."],
