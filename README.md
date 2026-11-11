@@ -36,9 +36,11 @@ out, and you can use them on any willing pony.
      or rub it slowly with your hand (VR). She relaxes into it. Grown mares only.
 3. **Walk away**, or ask for another hoof, and she puts it down.
 
-A lifted hoof shows its underside as it really is: the hoof wall's rim standing out around the
-sole, and the **frog**, the V-shaped pad that runs from the heels toward the toe. If you'd rather
-not see the frog, switch it off in the settings (see Upkeep below).
+A lifted hoof shows its underside. Pick how it looks in the settings (see Settings below): the
+game's own plain sole, Mitty's hooves, or one of four sculpted styles with a soft rim and a
+**frog**, the cushioned pad that runs from the heels toward the toe.
+
+![Every hoof model, bare (top) and shod (bottom): Original, Heart, Cushion, Arch, Rings, Mitty's](docs/hoof_models.jpg)
 
 **Shoe all four.** Once one hoof is shod, she'd walk lopsided until the others are too. She waits
 where she is for you to finish, and the hint on a bare hoof says she'd like it shod to match. If
@@ -78,13 +80,21 @@ never pay. A mare who's short of bits just thanks you instead.
 away and are saved for next time.
 
 - **Hoof model:** choose how a hoof looks from below, with a thumbnail of each. The hooves are
-  part of the pony's body mesh, so they move, shade and cast shadows with her. **Original** is the
-  game's own plain sole. **Heart**, **Cushion**, **Arch** and **Rings** are line-art hooves drawn as
-  thin raised lines: a fat heart frog; a heart frog with one rim line; a two-line rim open at the
-  heel with a bean frog; and concentric rings with a cleft slit. **Mitty's** has the hooves modelled
-  by Mitty (see Contributors). Shoes sit on any of them. Changing the model rebuilds every pony in
-  the world, which can cause a brief hitch, and the page says so while it happens.
-- **Show the frog:** switch the frog and its cleft off if you'd rather not see them (Heart, Cushion, Arch and Rings).
+  part of the pony's body mesh, so they move, shade and cast shadows with her, and the toe keeps
+  the game's own clean front edge. The choices:
+  - **Original:** the game's own plain sole (the default).
+  - **Heart:** a soft, pillow-shaped frog that follows the curve of the toe, with a cleft between
+    its two heel lobes, set in a gently dished sole.
+  - **Cushion:** like Heart, but a smaller, softer pillow in a deeper dish.
+  - **Arch:** a rim in two soft steps round the toe and sides, fading out toward the heel, with a
+    small heart-shaped frog near the heel.
+  - **Rings:** soft concentric rings and a small cleft.
+  - **Mitty's:** the hooves modelled by Mitty (see Contributors).
+
+  Shoes sit on any of them. Changing the model rebuilds every pony in the world, which takes a
+  few seconds and can cause a brief hitch; the page says so while it happens.
+- **Show the frog:** switch the frog and its cleft off if you'd rather not see them (Heart,
+  Cushion, Arch and Rings).
 - **Hooves get dirty:** switch this off and hooves never need picking, trimming or oiling, and
   shoes never work loose. The tools, shoes and hoof models all still work, so you can
   keep just the horseshoes and the new hooves.
@@ -134,7 +144,7 @@ oil_days=7.0
 enabled=true
 
 [hooves]
-model="detailed"
+model="original"
 show_frog=true
 
 [brushing]
@@ -228,6 +238,12 @@ godot --xr-mode off --path <project> -- --mod-src mare_care
   freshly brushed mane or tail.
 - `ui/`: the Settings page (`settings_tab.gd`) and the list of hoof models with their
   thumbnails (`hoof_models.gd`, `thumbs/`).
+- `farrier/body_hooves.gd`: the hoof models. Each sculpted model replaces the sole of every hoof in
+  the shared body mesh with a new one shaped in code; Mitty's comes from `hooves/`. Switching
+  clears the game's merged-mesh caches and rebuilds the ponies.
+- `tools/hoof_viewer.gd`: renders every hoof model with the game's own shading, bare and shod, and
+  writes the settings thumbnails. Run it with the mod at `res://mods/mare_care/`:
+  `godot --xr-mode off --path <project> --script res://mods/mare_care/tools/hoof_viewer.gd`.
 - `farrier/`: the farrier. `farrier.gd` runs the jobs, `hooves.gd` finds her soles and lifts
   her hooves, `shoes.gd` keeps the shoes on, `hoof_care.gd` holds what was done and when, plus
   the settings, `spa_care.gd` listens to the spa, and `models.gd` builds the tools and shoes. To regenerate the tool models:

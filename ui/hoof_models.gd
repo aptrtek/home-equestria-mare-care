@@ -13,25 +13,25 @@ const MODELS: Array[Dictionary] = [
 	{
 		"id": "heart",
 		"name": "Heart",
-		"text": "A fat heart-shaped frog on a plain sole, built into the body. Shoes sit on it.",
+		"text": "A soft, pillow-shaped frog that follows the curve of the toe, with a cleft between its heel lobes. Shoes sit on it.",
 		"thumb": "res://mods/mare_care/ui/thumbs/hoof_heart.png",
 	},
 	{
 		"id": "cushion",
 		"name": "Cushion",
-		"text": "A heart-shaped frog and a single rim line round the toe and sides. Shoes sit on it.",
+		"text": "Like Heart, but a smaller, softer pillow in a deeper dished sole. Shoes sit on it.",
 		"thumb": "res://mods/mare_care/ui/thumbs/hoof_cushion.png",
 	},
 	{
 		"id": "arch",
 		"name": "Arch",
-		"text": "A rim drawn as two lines, open and squared off at the heel, with a bean-shaped frog. Shoes sit on it.",
+		"text": "A rim in two soft steps round the toe and sides, fading out toward the heel, and a small frog. Shoes sit on it.",
 		"thumb": "res://mods/mare_care/ui/thumbs/hoof_arch.png",
 	},
 	{
 		"id": "rings",
 		"name": "Rings",
-		"text": "Two concentric rings and a thin cleft slit, drawn like a sketch. Shoes sit on it.",
+		"text": "Soft concentric rings and a small cleft. Shoes sit on it.",
 		"thumb": "res://mods/mare_care/ui/thumbs/hoof_rings.png",
 	},
 	{

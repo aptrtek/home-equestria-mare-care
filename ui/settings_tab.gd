@@ -220,7 +220,7 @@ func _build(entry: Dictionary) -> void:
 
 	_heading(list, "Hooves", font)
 	_model_chooser(entry)
-	_toggle_row(entry, "Show the frog", "The frog and its cleft, drawn on the underside of the hoof (Classic and Round). Changing it rebuilds the ponies too.", CARE.show_frog,
+	_toggle_row(entry, "Show the frog", "The frog and its cleft, drawn on the underside of the hoof (Heart, Cushion, Arch and Rings). Changing it rebuilds the ponies too.", CARE.show_frog,
 		_on_frog.bind(entry), "frog")
 
 	_heading(list, "Care upkeep", font)
@@ -260,9 +260,11 @@ func _model_chooser(entry: Dictionary) -> void:
 	var font: int = entry.font
 	var inner := _card(entry)
 	inner.add_child(_title_block("Hoof model", "How a hoof looks from below. The hooves are part of the body, so changing this rebuilds every pony, which can cause a brief hitch.", font))
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 14)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	# The cards wrap onto more lines when the page is narrow.
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 14)
+	row.add_theme_constant_override("v_separation", 14)
+	row.alignment = FlowContainer.ALIGNMENT_CENTER
 	inner.add_child(row)
 	var buttons := {}
 	for model: Dictionary in HOOF_MODELS.MODELS:
