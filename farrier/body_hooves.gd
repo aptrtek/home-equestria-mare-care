@@ -464,7 +464,7 @@ static func _cap_y(point: Vector2, cap_tris: Array, verts: PackedVector3Array) -
 static func _shade_normal(n: Vector3) -> Vector3:
 	var side := Vector2(n.x, n.z)
 	var steep := smoothstep(0.1, 0.5, side.length())
-	var out := Vector3(n.x * (1.0 + 1.9 * steep), n.y * (1.0 - 0.4 * steep), n.z * (1.0 + 1.9 * steep))
+	var out := Vector3(n.x * (1.0 + 1.5 * steep), n.y * (1.0 - 0.3 * steep), n.z * (1.0 + 1.5 * steep))
 	if steep < 0.01: out = Vector3(0.0, n.y, 0.0)
 	return out.normalized()
 
@@ -483,22 +483,22 @@ static func _height(model: String, t: float, angle: float, nx: float, nz: float,
 	match model:
 		"heart":
 			floor_y = RECESS * _rise(t, lerpf(0.99, 0.78, toe), lerpf(0.75, 0.14, toe))
-			if with_frog: pad = 0.8 * _inside(_pillow(t, from_heel, 0.8, 0.5), 0.12) * _lift(nz, -0.75, 0.2)
+			if with_frog: pad = 0.75 * _inside(_pillow(t, from_heel, 0.8, 0.5), 0.16) * _lift(nz, -0.75, 0.2)
 		"cushion":
 			# A dished sole with a soft rim, and a fat heart with a gentle wall.
 			floor_y = RECESS * _rise(t, lerpf(0.99, 0.74, toe), lerpf(0.75, 0.22, toe))
-			if with_frog: pad = 0.85 * _inside(_pillow(t, from_heel, 0.76, 0.4), 0.17) * _lift(nz, -0.7, 0.2)
+			if with_frog: pad = 0.75 * _inside(_pillow(t, from_heel, 0.76, 0.4), 0.2) * _lift(nz, -0.7, 0.2)
 		"arch":
 			# Two soft steps (the rim's two lines) round the toe and sides, fading out toward the heel.
 			var outer := lerpf(0.99, 0.8, toe)
 			var inner := lerpf(0.99, 0.6, toe)
-			var width := lerpf(0.75, 0.09, toe)
+			var width := lerpf(0.75, 0.1, toe)
 			floor_y = RECESS * (0.45 * _rise(t, outer, width) + 0.55 * _rise(t, inner, width))
-			if with_frog: pad = 0.8 * _inside(_heart(nx, nz, 0.7, 0.8, 0.3), 0.1) * _lift(nz, -0.1, 0.25)
+			if with_frog: pad = 0.7 * _inside(_heart(nx, nz, 0.7, 0.8, 0.3), 0.14) * _lift(nz, -0.1, 0.25)
 		"rings":
 			# Terraced concentric rings, and a cleft slit tapering toward the toe.
-			floor_y = RECESS * (0.4 * _rise(t, lerpf(0.99, 0.84, toe), 0.1) + 0.6 * _rise(t, lerpf(0.99, 0.62, toe), 0.1))
-			if with_frog: floor_y += RECESS * 0.55 * _wedge(nx, nz) * smoothstep(0.68, 0.6, t)
+			floor_y = RECESS * (0.4 * _rise(t, lerpf(0.99, 0.84, toe), 0.11) + 0.6 * _rise(t, lerpf(0.99, 0.62, toe), 0.11))
+			if with_frog: floor_y += RECESS * 0.4 * _wedge(nx, nz) * smoothstep(0.68, 0.6, t)
 	pad *= smoothstep(0.97, 0.9, t)
 	y = maxf(y, floor_y - RECESS * pad)
 	return maxf(y, 0.0)
@@ -561,4 +561,4 @@ static func _heart(nx: float, nz: float, sx: float, sz: float, dz: float) -> flo
 static func _wedge(nx: float, nz: float) -> float:
 	var along := clampf((nz + 0.12) / 0.42, 0.0, 1.0)
 	if nz < -0.12 or nz > 0.3: return 0.0
-	return smoothstep(0.075 * along + 0.02, 0.075 * along * 0.4, absf(nx))
+	return smoothstep(0.1 * along + 0.04, 0.0, absf(nx))
