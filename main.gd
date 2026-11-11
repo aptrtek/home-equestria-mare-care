@@ -16,11 +16,14 @@ const FARRIER := preload("res://mods/mare_care/farrier/farrier.gd")
 const CARE := preload("res://mods/mare_care/farrier/hoof_care.gd")
 const SETTINGS_TAB := preload("res://mods/mare_care/ui/settings_tab.gd")
 const SPA_CARE := preload("res://mods/mare_care/farrier/spa_care.gd")
+const BODY_HOOVES := preload("res://mods/mare_care/farrier/body_hooves.gd")
 
 
 func _ready() -> void:
 	add_to_group("mare_care_mod")
 	CARE.load_settings(ID)
+	# Body hoof models change the shared body mesh, so they go in before any pony is built.
+	BODY_HOOVES.apply(CARE.hoof_model, CARE.show_frog)
 	_add("Brushing", BRUSHING)
 	_add("Shoes", SHOES)
 	_add("Farrier", FARRIER)

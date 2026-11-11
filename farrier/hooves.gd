@@ -15,12 +15,6 @@ const NAMES := {"FL": "front left", "FR": "front right", "RL": "back left", "RR"
 const BONES := {"FL": "pony_finger_L", "FR": "pony_finger_R", "RL": "pony_hoof_L", "RR": "pony_hoof_R"}
 ## How high above the lowest vertex still counts as the sole ring (mesh metres).
 const SOLE_BAND := 0.012
-## Hoof wall vertices kept for the jewellery rings: up to this far above the sole (mesh metres).
-const WALL_TOP := 0.06
-## A ring takes the outermost vertex in each of this many slices around the hoof...
-const RING_STEPS := 32
-## ...from vertices within this far of the ring's height.
-const RING_BAND := 0.004
 ## How long a lift holds before she puts the hoof down by herself (seconds).
 const LIFT_SECONDS := 600.0
 const RESERVE := "mare_care:farrier"
@@ -74,66 +68,10 @@ static func soles(pony: Node3D) -> Dictionary:
 			if first: box = AABB(p, Vector3.ZERO); first = false
 			else: box = box.expand(p)
 		var centre := Vector3(box.get_center().x, low, box.get_center().z)
-		# The hoof's own vertices in the sole frame, for the wall rings (ring()).
-		var near := PackedVector3Array()
-		for p in points:
-			if p.y <= low + WALL_TOP: near.append(p - centre)
 		out[leg] = {"bone": skeleton.find_bone(bone_name), "local": mi.skin.get_bind_pose(bind) * Transform3D(Basis.IDENTITY, centre),
-			"width": box.size.x, "length": box.size.z, "points": near, "rings": {}}
+			"width": box.size.x, "length": box.size.z}
 	_soles[key] = out
 	return out
-
-
-## The outside of the hoof wall `height` metres up from the sole, as RING_STEPS points going around
-## it (sole frame), each [point, outward normal]. Bins with no vertex nearby borrow their
-## neighbours'. Cached per height. Empty when the hoof has no usable vertices.
-static func ring(pony: Node3D, leg: String, height: float) -> Array:
-	var all := soles(pony)
-	if not all.has(leg): return []
-	var row: Dictionary = all[leg]
-	var rings: Dictionary = row.rings
-	var key := snappedf(height, 0.001)
-	if rings.has(key): return rings[key]
-	var best := []
-	for i in RING_STEPS: best.append(null)
-	for p: Vector3 in row.points:
-		if absf(p.y - height) > RING_BAND: continue
-		var flat := Vector2(p.x, p.z)
-		if flat.length() < 0.001: continue
-		var bin := int(round(fposmod(atan2(flat.y, flat.x), TAU) / TAU * RING_STEPS)) % RING_STEPS
-		if best[bin] == null or flat.length() > Vector2(best[bin].x, best[bin].z).length(): best[bin] = p
-	var out := []
-	var filled := 0
-	for b: Variant in best:
-		if b != null: filled += 1
-	if filled < RING_STEPS / 3:
-		rings[key] = out
-		return out
-	for i in RING_STEPS:
-		var p: Variant = best[i]
-		if p == null:
-			# Borrow the nearest filled neighbours' radius at this angle.
-			var a := float(i) / RING_STEPS * TAU
-			var r := 0.0
-			for d in range(1, RING_STEPS):
-				var left: Variant = best[(i - d + RING_STEPS) % RING_STEPS]
-				var right: Variant = best[(i + d) % RING_STEPS]
-				if left != null or right != null:
-					var n := 0
-					if left != null: r += Vector2(left.x, left.z).length(); n += 1
-					if right != null: r += Vector2(right.x, right.z).length(); n += 1
-					r /= n
-					break
-			p = Vector3(cos(a) * r, height, sin(a) * r)
-		var out_dir := Vector3(p.x, 0.0, p.z).normalized()
-		out.append([Vector3(p.x, height, p.z), out_dir])
-	rings[key] = out
-	return out
-
-
-## The angle (radians, sole frame, atan2(z, x)) of ring step `i`. The toe is at -PI/2 (-Z).
-static func ring_angle(i: int) -> float:
-	return float(i) / RING_STEPS * TAU
 
 
 ## The body mesh with the hooves: the biggest skinned mesh on her body skeleton.

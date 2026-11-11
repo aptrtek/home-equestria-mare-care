@@ -19,23 +19,9 @@ var mod_id := "mare_care"
 var _clock := 0.0
 ## pony -> {leg: {style, nails (Array[bool] shown), loose}} that farrier.gd is showing right now
 var _fitting := {}
-## pony -> {leg: true} hooves showing their frog right now (lifted for the farrier)
-var _frogs := {}
-const JEWEL_NODE := "MareCareJewel_"
-const FROG_NODE := "MareCareFrog_"
-## Gems and bands sit this high up the hoof wall (fraction of the hoof's width above the sole).
-const BAND_HEIGHT := 0.16
-const GEM_HEIGHT := 0.36
-static var _frog_material := {}
-## The hoof wall's rim stands this far out below the sole on a lifted hoof (fraction of its width),
-## and the shoe on a lifted hoof sits on it.
-const RIM_DEPTH := 0.07
-const RIM_WALL := 0.09
-const RIM_NODE := "MareCareRim_"
-
 static var _materials := {}
 static var _nail_mesh: Mesh
-static var _nail_material: Material
+static var _nail_materials := {}
 
 
 func _process(delta: float) -> void:
@@ -81,13 +67,9 @@ func refresh(pony: Node3D) -> void:
 			if not style.is_empty():
 				var loose := CARE.due(hoof, "shoe")
 				var nails := []
-				for i in 6: nails.append(not loose)
+				for i in MODELS.NAIL_COUNT: nails.append(not loose)
 				want = {"style": style, "nails": nails, "loose": loose}
 		_show(pony, skeleton, leg, want)
-		_show_jewels(pony, skeleton, leg, str((record.get(leg, {}) as Dictionary).get("jewel", "")))
-		var up := bool((_frogs.get(pony, {}) as Dictionary).get(leg, false))
-		_show_frog(pony, skeleton, leg, CARE.detailed() and CARE.show_frog and up)
-		_show_rim(pony, skeleton, leg, CARE.detailed() and up)
 
 
 func _show(pony: Node3D, skeleton: Skeleton3D, leg: String, want: Dictionary) -> void:
@@ -95,8 +77,7 @@ func _show(pony: Node3D, skeleton: Skeleton3D, leg: String, want: Dictionary) ->
 	if want.is_empty():
 		if node != null: node.queue_free()
 		return
-	var lifted := bool((_frogs.get(pony, {}) as Dictionary).get(leg, false)) and CARE.detailed()
-	var key := "%s|%s|%s|%s" % [want.style, str(want.nails), str(want.loose), str(lifted)]
+	var key := "%s|%s|%s" % [want.style, str(want.nails), str(want.loose)]
 	if node != null and str(node.get_meta("key", "")) == key: return
 	var soles := HOOVES.soles(pony)
 	if not soles.has(leg): return
@@ -113,9 +94,8 @@ func _show(pony: Node3D, skeleton: Skeleton3D, leg: String, want: Dictionary) ->
 	var thick := width * 0.07
 	var holder := Node3D.new()
 	# The shoe's top face against the sole, half sunk into the hoof so it never floats.
-	var tilt := Basis(Vector3.RIGHT, deg_to_rad(5.0)).rotated(Vector3.FORWARD, deg_to_rad(3.0)) if bool(want.loose) else Basis.IDENTITY
-	var rim_drop := float(row.width) * RIM_DEPTH if lifted else 0.0
-	holder.transform = Transform3D(row.local) * Transform3D(tilt, Vector3.DOWN * rim_drop) * Transform3D(Basis.from_scale(Vector3(1, 1, length_scale)), Vector3.ZERO)
+	var tilt := Basis(Vector3.RIGHT, deg_to_rad(10.0)).rotated(Vector3.FORWARD, deg_to_rad(6.0)) if bool(want.loose) else Basis.IDENTITY
+	holder.transform = Transform3D(row.local) * Transform3D(tilt, Vector3.ZERO) * Transform3D(Basis.from_scale(Vector3(1, 1, length_scale)), Vector3.ZERO)
 	node.add_child(holder)
 	var shoe := MeshInstance3D.new()
 	shoe.name = "Shoe"
@@ -131,156 +111,12 @@ func _show(pony: Node3D, skeleton: Skeleton3D, leg: String, want: Dictionary) ->
 		var nail := MeshInstance3D.new()
 		nail.name = "Nail%d" % i
 		nail.mesh = _nail()
-		nail.material_override = _nail_material
+		nail.material_override = _nail_mat(str(want.style))
 		nail.visibility_range_end = VISIBLE_TO
 		var driven: bool = i < nails.size() and bool(nails[i])
 		var s := width / 0.11
 		nail.transform = Transform3D(Basis.from_scale(Vector3.ONE * s), points[i] + Vector3(0, -thick * 0.5 - (0.0005 if driven else 0.006) * s, 0))
 		holder.add_child(nail)
-
-
-## Shows her frog on `leg` while the hoof is up (farrier.gd), or hides it.
-func frog(pony: Node3D, leg: String, on: bool) -> void:
-	if not _frogs.has(pony): _frogs[pony] = {}
-	if on: _frogs[pony][leg] = true
-	else: (_frogs[pony] as Dictionary).erase(leg)
-	refresh(pony)
-
-
-func _attachment(skeleton: Skeleton3D, node_name: String, bone: int) -> BoneAttachment3D:
-	var node := skeleton.get_node_or_null(node_name) as BoneAttachment3D
-	if node == null:
-		node = BoneAttachment3D.new()
-		node.name = node_name
-		skeleton.add_child(node)
-		node.bone_idx = bone
-		node.on_skeleton_update()
-	return node
-
-
-## The gems and band of `design` (models.gd JEWELS) on her hoof, or none.
-func _show_jewels(pony: Node3D, skeleton: Skeleton3D, leg: String, design: String) -> void:
-	var node := skeleton.get_node_or_null(JEWEL_NODE + leg)
-	if design.is_empty() or not MODELS.JEWELS.has(design):
-		if node != null: node.queue_free()
-		return
-	if node != null and str(node.get_meta("design", "")) == design: return
-	var soles := HOOVES.soles(pony)
-	if not soles.has(leg): return
-	var row: Dictionary = soles[leg]
-	var attachment := _attachment(skeleton, JEWEL_NODE + leg, int(row.bone))
-	for child in attachment.get_children(): child.queue_free()
-	attachment.set_meta("design", design)
-	var holder := Node3D.new()
-	holder.transform = row.local
-	attachment.add_child(holder)
-	var spec: Dictionary = MODELS.JEWELS[design]
-	var width: float = row.width
-	var gem_size := width * 0.17
-	if str(spec.band) != "":
-		var band_ring := HOOVES.ring(pony, leg, width * BAND_HEIGHT)
-		if not band_ring.is_empty():
-			var band := MeshInstance3D.new()
-			band.mesh = MODELS.band_mesh(band_ring, width * 0.09, width * 0.008)
-			band.material_override = MODELS.band_material(str(spec.band))
-			band.visibility_range_end = VISIBLE_TO
-			holder.add_child(band)
-	var gem_ring := HOOVES.ring(pony, leg, width * GEM_HEIGHT)
-	for g: Array in spec.wall:
-		if gem_ring.is_empty(): break
-		# The toe is -Z: angle -90 degrees in the ring's terms; designs count from the toe.
-		var angle := deg_to_rad(-90.0 + float(g[0]))
-		var step := int(round(fposmod(angle, TAU) / TAU * HOOVES.RING_STEPS)) % HOOVES.RING_STEPS
-		var at: Vector3 = gem_ring[step][0]
-		var out: Vector3 = gem_ring[step][1]
-		holder.add_child(_gem(str(g[1]), gem_size, at + out * gem_size * 0.15, out))
-	var sole_gems: Array = spec.sole
-	for i in sole_gems.size():
-		# Around the frog, in an arc toward the toe and down the sides.
-		var a := deg_to_rad(lerpf(-150.0, -30.0, float(i) / maxf(1.0, sole_gems.size() - 1)))
-		var at := Vector3(cos(a) * width * 0.3, -0.001, sin(a) * float(row.length) * 0.3)
-		holder.add_child(_gem(str(sole_gems[i]), gem_size * 0.75, at, Vector3.DOWN))
-
-
-func _gem(kind: String, size: float, at: Vector3, out: Vector3) -> MeshInstance3D:
-	var gem := MeshInstance3D.new()
-	gem.mesh = MODELS.gem_mesh(size)
-	gem.material_override = MODELS.gem_material(kind)
-	gem.visibility_range_end = VISIBLE_TO
-	# The gem's table (+Z) faces out of the hoof.
-	var up := Vector3.UP if absf(out.dot(Vector3.UP)) < 0.9 else Vector3.FORWARD
-	gem.transform = Transform3D(Basis.looking_at(-out, up), at)
-	return gem
-
-
-## Her frog on the sole of `leg`, in her own coat colour a shade darker.
-func _show_frog(pony: Node3D, skeleton: Skeleton3D, leg: String, on: bool) -> void:
-	var node := skeleton.get_node_or_null(FROG_NODE + leg)
-	if not on:
-		if node != null: node.queue_free()
-		return
-	if node != null: return
-	var soles := HOOVES.soles(pony)
-	if not soles.has(leg): return
-	var row: Dictionary = soles[leg]
-	var attachment := _attachment(skeleton, FROG_NODE + leg, int(row.bone))
-	var frog := MeshInstance3D.new()
-	frog.name = "Frog"
-	frog.mesh = MODELS.frog_mesh(float(row.width), float(row.length))
-	frog.material_override = _frog_mat(pony)
-	frog.transform = row.local
-	attachment.add_child(frog)
-
-
-## The hoof wall's rim around the sole of a lifted hoof.
-func _show_rim(pony: Node3D, skeleton: Skeleton3D, leg: String, on: bool) -> void:
-	var node := skeleton.get_node_or_null(RIM_NODE + leg)
-	if not on:
-		if node != null: node.queue_free()
-		return
-	if node != null: return
-	var soles := HOOVES.soles(pony)
-	if not soles.has(leg): return
-	var row: Dictionary = soles[leg]
-	var attachment := _attachment(skeleton, RIM_NODE + leg, int(row.bone))
-	var rim := MeshInstance3D.new()
-	rim.name = "Rim"
-	rim.mesh = MODELS.rim_mesh(float(row.width) * 1.02, float(row.length) * 1.02, float(row.width) * RIM_DEPTH, float(row.width) * RIM_WALL)
-	var m := (_frog_mat(pony) as StandardMaterial3D).duplicate() as StandardMaterial3D
-	m.vertex_color_use_as_albedo = false
-	m.albedo_color = _coat(pony).darkened(0.08)
-	rim.material_override = m
-	rim.transform = row.local
-	attachment.add_child(rim)
-	var sole := MeshInstance3D.new()
-	sole.name = "Sole"
-	sole.mesh = MODELS.sole_mesh(float(row.width) * 1.02, float(row.length) * 1.02, float(row.width) * RIM_WALL)
-	var sm := (_frog_mat(pony) as StandardMaterial3D).duplicate() as StandardMaterial3D
-	sm.vertex_color_use_as_albedo = false
-	sm.albedo_color = _coat(pony).darkened(0.32)
-	sole.material_override = sm
-	sole.transform = row.local
-	attachment.add_child(sole)
-
-
-func _coat(pony: Node3D) -> Color:
-	var feathers: Script = load("res://world/minigames/spa/spa_feathers.gd")
-	if feathers != null and feathers.has_method("coat_of"): return feathers.call("coat_of", pony)
-	return Color(0.8, 0.7, 0.6)
-
-
-func _frog_mat(pony: Node3D) -> Material:
-	var coat := _coat(pony)
-	var key := coat.to_html()
-	if not _frog_material.has(key):
-		var m := StandardMaterial3D.new()
-		# The frog: a touch lighter and warmer than her coat; its grooves come from vertex colour.
-		m.albedo_color = coat.lightened(0.08).lerp(Color(0.95, 0.75, 0.75), 0.15)
-		m.vertex_color_use_as_albedo = true
-		m.roughness = 0.85
-		m.cull_mode = BaseMaterial3D.CULL_DISABLED
-		_frog_material[key] = m
-	return _frog_material[key]
 
 
 ## Where nail `i` of the shoe on `leg` is (world), for the hammer.
@@ -308,13 +144,24 @@ static func _material(style: String) -> Material:
 
 static func _nail() -> Mesh:
 	if _nail_mesh == null:
+		# Small, low heads: nails hold a shoe on, they are not meant to stand out.
 		var c := CylinderMesh.new()
-		c.top_radius = 0.0035; c.bottom_radius = 0.0045; c.height = 0.006; c.radial_segments = 8; c.rings = 1
+		c.top_radius = 0.0021; c.bottom_radius = 0.0027; c.height = 0.0035; c.radial_segments = 10; c.rings = 1
 		_nail_mesh = c
-		var m := StandardMaterial3D.new()
-		m.albedo_color = Color("5b5f66"); m.metallic = 0.9; m.roughness = 0.35
-		_nail_material = m
 	return _nail_mesh
+
+
+## A nail head in the shoe's own metal, a shade darker, so it reads as part of the shoe.
+static func _nail_mat(style: String) -> Material:
+	if not _nail_materials.has(style):
+		var m := StandardMaterial3D.new()
+		var shoe := _material(style) as StandardMaterial3D
+		var base := shoe.albedo_color if style != "rainbow" else Color("8a8fa0")
+		m.albedo_color = base.darkened(0.3)
+		m.metallic = 0.55
+		m.roughness = 0.4
+		_nail_materials[style] = m
+	return _nail_materials[style]
 
 
 ## The mod switched off: every shoe comes off with it.
@@ -328,6 +175,6 @@ func _exit_tree() -> void:
 		var skeleton: Skeleton3D = pony.get("skeleton")
 		if skeleton == null: continue
 		for leg: String in HOOVES.LEGS:
-			for prefix: String in [NODE, "MareCareSole_", JEWEL_NODE, FROG_NODE, RIM_NODE]:
+			for prefix: String in [NODE, "MareCareSole_"]:
 				var node := skeleton.get_node_or_null(prefix + leg)
 				if node != null: node.queue_free()

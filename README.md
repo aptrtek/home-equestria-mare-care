@@ -29,33 +29,16 @@ out, and you can use them on any willing pony.
    - **Nippers, then rasp:** trim the hoof wall with the nippers, then level it with the rasp.
      On a shod hoof, the nippers pull the shoe off first.
    - **Horseshoe:** fit one to a bare hoof. If the hoof needs a trim, trim it first.
-   - **Hammer:** drive in all six nails, one click per nail. A shoe that has worked loose is
+   - **Hammer:** drive in all four nails, one click per nail. A shoe that has worked loose is
      re-nailed the same way.
    - **Hoof oil:** work it in, and the hoof shines for a few minutes.
    - **Hoof massage:** with nothing in your hand, hold the mouse button on her lifted hoof (desktop),
      or rub it slowly with your hand (VR). She relaxes into it. Grown mares only.
-   - **Hoof jewellery:** set a design on the lifted hoof. Use the same design again to take it off.
 3. **Walk away**, or ask for another hoof, and she puts it down.
 
 A lifted hoof shows its underside as it really is: the hoof wall's rim standing out around the
 sole, and the **frog**, the V-shaped pad that runs from the heels toward the toe. If you'd rather
 not see the frog, switch it off in the settings (see Upkeep below).
-
-### Hoof jewellery
-
-Six designs come in little velvet cases. Most go on the outside of the hoof, where everyone can
-see them. Two of them also add gems on the sole, around the frog.
-
-| Design | On the hoof wall | On the sole |
-| --- | --- | --- |
-| Crystal Hoof Gems | three clear gems | |
-| Ruby Hoof Band | a gold band with three rubies | |
-| Sapphire Hoof Band | a silver band with sapphires and crystals | |
-| Rainbow Hoof Gems | five gems in rainbow colours | |
-| Starry Hooves | a silver band with crystals and an amethyst | crystals and amethysts |
-| Royal Hoof Jewels | a gold band with emeralds, crystals and a ruby | citrines and rubies |
-
-Jewellery stays on her hooves, alongside any shoes, until you take it off.
 
 **Shoe all four.** Once one hoof is shod, she'd walk lopsided until the others are too. She waits
 where she is for you to finish, and the hint on a bare hoof says she'd like it shod to match. If
@@ -83,7 +66,6 @@ four are on:
 | Hoof oil | 2 |
 | Resetting a loose shoe | 3 |
 | Hoof massage | 3 |
-| Hoof jewellery (each hoof, each new design) | 5 |
 | New shoe | steel 6, silver 9, rainbow 10, gold 12 |
 
 About two in three grown mares pay. The rest take it as a favour between friends, and which
@@ -95,12 +77,16 @@ never pay. A mare who's short of bits just thanks you instead.
 **Settings > Mare Care** in the game (under Add-ons) has everything below. Changes apply right
 away and are saved for next time.
 
-- **Hoof model:** choose how a lifted hoof looks from below, with a thumbnail of each.
-  **Original** is the game's own plain sole. **Detailed** adds the wall's rim, a darker sole and
-  the frog, and shoes sit on the rim. More models can be added later.
-- **Show the frog:** switch the frog off if you'd rather not see it (Detailed model only).
+- **Hoof model:** choose how a hoof looks from below, with a thumbnail of each. The hooves are
+  part of the pony's body mesh, so they move, shade and cast shadows with her. **Original** is the
+  game's own plain sole. **Detailed** has a rim, a recessed sole and a crisp, anatomical frog.
+  **Soft** is smooth and cartoon-style: a thick rounded lip that tapers to points at the heels,
+  around a glossy dished sole and a soft, puffy frog. **Mitty's** has the hooves modelled by Mitty
+  (see Contributors). Shoes sit on the rim with any of them. Changing the model rebuilds every
+  pony in the world, which can cause a brief hitch, and the page says so while it happens.
+- **Show the frog:** switch the frog off if you'd rather not see it (Detailed and Soft).
 - **Hooves get dirty:** switch this off and hooves never need picking, trimming or oiling, and
-  shoes never work loose. The tools, shoes, jewellery and hoof models all still work, so you can
+  shoes never work loose. The tools, shoes and hoof models all still work, so you can
   keep just the horseshoes and the new hooves.
 - **The spa cares for hooves:** see below.
 - **How long until care is due again:** one slider each for dirt building up, a trim wearing
@@ -198,6 +184,7 @@ A pony who is angry with you or has asked for space turns away. Sleeping ponies 
 - **aperture_tech**: Mare Care itself, including the farrier, sparkles and hoof care.
 - **[modChad](https://github.com/modChad)**: the brushing groundwork, from his
   [Grooming mod](https://github.com/modChad/home-equestria-mods/tree/main/grooming).
+- **Mitty**: the hoof model "Mitty's", hooves built into the body mesh (`hooves/`).
 
 ## Credits
 
@@ -206,6 +193,8 @@ A pony who is angry with you or has asked for space turns away. Sleeping ponies 
   brush strokes, the brush models and the princess hair handling. Thank you, modChad! Their mod
   also does wing preening, which this mod leaves to theirs.
 - **Brushing sounds:** modChad's own recordings, from the Grooming mod.
+- **Mitty's hoof model:** the hooves in `hooves/mitty_body.res` come from Mitty's `hooves.glb`
+  (source kept in `hooves/source/`). Thank you, Mitty!
 - **Sparkles, farrier tools and horseshoes:** made for this mod.
 - **Farrier sounds:** the game's own foley (metal, crunch, rasp and cloth sounds).
 - **Pictures:** taken in game.

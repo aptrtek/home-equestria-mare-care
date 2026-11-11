@@ -13,6 +13,7 @@ extends Node
 const STYLE := preload("res://world/ui/menu_style.gd")
 const CARE := preload("res://mods/mare_care/farrier/hoof_care.gd")
 const HOOF_MODELS := preload("res://mods/mare_care/ui/hoof_models.gd")
+const BODY_HOOVES := preload("res://mods/mare_care/farrier/body_hooves.gd")
 const PAGE_PATH := "res://world/ui/settings_page.gd"
 ## The page's own content areas; anything else in its content box is another add-on's panel.
 const NATIVE := ["_scroll", "provider", "prompts", "feedback_notes", "controls_map"]
@@ -219,11 +220,11 @@ func _build(entry: Dictionary) -> void:
 
 	_heading(list, "Hooves", font)
 	_model_chooser(entry)
-	_toggle_row(entry, "Show the frog", "The V-shaped pad on a lifted hoof's underside. Detailed model only.", CARE.show_frog,
+	_toggle_row(entry, "Show the frog", "The pad on the underside of the hoof (Detailed and Soft). Changing it rebuilds the ponies too.", CARE.show_frog,
 		_on_frog.bind(entry), "frog")
 
 	_heading(list, "Care upkeep", font)
-	_toggle_row(entry, "Hooves get dirty", "Off: hooves never need picking, trimming or oiling and shoes never work loose. The tools, shoes, jewellery and hoof models all still work.", CARE.dirt_enabled,
+	_toggle_row(entry, "Hooves get dirty", "Off: hooves never need picking, trimming or oiling and shoes never work loose. The tools, shoes and hoof models all still work.", CARE.dirt_enabled,
 		_on_dirt.bind(entry), "dirt")
 	_toggle_row(entry, "The spa cares for hooves", "Mares who finish a visit to Aloe and Lotus's spa have their hooves cleaned, trimmed and oiled, whoever did the work.", CARE.spa_care,
 		_on_spa_care.bind(entry), "spa")
@@ -258,7 +259,7 @@ func _build(entry: Dictionary) -> void:
 func _model_chooser(entry: Dictionary) -> void:
 	var font: int = entry.font
 	var inner := _card(entry)
-	inner.add_child(_title_block("Hoof model", "How a hoof looks from below. Pick one to see it on the next lifted hoof.", font))
+	inner.add_child(_title_block("Hoof model", "How a hoof looks from below. The hooves are part of the body, so changing this rebuilds every pony, which can cause a brief hitch.", font))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -283,8 +284,13 @@ func _model_chooser(entry: Dictionary) -> void:
 	var about := STYLE.label("", "Muted", font - 4)
 	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(about)
+	var notice := STYLE.label("", "Muted", font - 4)
+	notice.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	notice.visible = false
+	inner.add_child(notice)
 	entry.refs.models = buttons
 	entry.refs.about = about
+	entry.refs.notice = notice
 
 
 func _on_frog(on: bool, entry: Dictionary) -> void:
@@ -347,10 +353,27 @@ func _changed(entry: Dictionary) -> void:
 	if is_instance_valid(entry.page): entry.page.call("_redraw")
 
 
-## Shows the new settings on ponies that are in the world.
+## Shows the new settings on ponies that are in the world. A hoof model change rebuilds the ponies'
+## meshes (a few per frame), and the page says so while it runs.
 func _apply() -> void:
+	if BODY_HOOVES.needs_change(CARE.hoof_model, CARE.show_frog) and BODY_HOOVES.apply(CARE.hoof_model, CARE.show_frog):
+		_set_notice(true)
+		BODY_HOOVES.refresh_ponies(get_tree(), _rebuild_done)
 	var shoes := get_parent().get_node_or_null("Shoes") if get_parent() != null else null
 	if shoes != null and shoes.has_method("refresh_all"): shoes.call("refresh_all")
+
+
+func _rebuild_done() -> void:
+	_set_notice(false)
+
+
+## The "rebuilding" line under the model cards.
+func _set_notice(on: bool) -> void:
+	for entry: Dictionary in _entries:
+		var notice: Variant = entry.refs.get("notice")
+		if notice is Label and is_instance_valid(notice):
+			(notice as Label).text = "Rebuilding the ponies for the new hooves... a brief hitch is normal." if on else ""
+			(notice as Label).visible = on
 
 
 func _sync(entry: Dictionary) -> void:
@@ -368,7 +391,7 @@ func _sync(entry: Dictionary) -> void:
 		(refs.spa as CheckButton).set_pressed_no_signal(CARE.spa_care)
 	if refs.has("frog"):
 		var frog: CheckButton = refs.frog
-		frog.disabled = not CARE.detailed()
+		frog.disabled = not CARE.underside()
 		frog.set_pressed_no_signal(CARE.show_frog)
 
 
