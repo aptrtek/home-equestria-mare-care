@@ -44,10 +44,10 @@ out, and you can use them on any willing pony.
 3. **Walk away**, or ask for another hoof, and she puts it down.
 
 A lifted hoof shows its underside. Pick how it looks in the settings (see Settings below): the
-game's own plain sole, Mitty's hooves, or one of four sculpted styles with a soft rim and a
+game's own plain sole, two sets of Mitty's hooves, or one of four sculpted styles with a soft rim and a
 **frog**, the cushioned pad that runs from the heels toward the toe.
 
-![Every hoof model, bare (top) and shod (bottom): Original, Heart, Cushion, Arch, Rings, Mitty's](docs/hoof_models.jpg)
+![Every hoof model, bare (top) and shod (bottom): Original, Heart, Cushion, Arch, Rings, Mitty's, Mitty's v2](docs/hoof_models.jpg)
 
 **Shoe all four.** Once one hoof is shod, she'd walk lopsided until the others are too. She waits
 where she is for you to finish, and the hint on a bare hoof says she'd like it shod to match. If
@@ -97,6 +97,7 @@ away and are saved for next time.
     small heart-shaped frog near the heel.
   - **Rings:** soft concentric rings and a small cleft.
   - **Mitty's:** the hooves modelled by Mitty (see Contributors).
+  - **Mitty's v2:** Mitty's second hooves, with big puffy frogs that bulge out of the sole.
 
   Shoes sit on any of them. Changing the model rebuilds every pony in the world, which takes a
   few seconds and can cause a brief hitch; the page says so while it happens.
@@ -210,7 +211,7 @@ A pony who is angry with you or has asked for space turns away. Sleeping ponies 
 - **aperture_tech**: Mare Care itself, including the farrier, sparkles and hoof care.
 - **[modChad](https://github.com/modChad)**: the brushing groundwork, from his
   [Grooming mod](https://github.com/modChad/home-equestria-mods/tree/main/grooming).
-- **Mitty**: the hoof model "Mitty's", hooves built into the body mesh (`hooves/`).
+- **Mitty**: the hoof models "Mitty's" and "Mitty's v2", hooves built into the body mesh (`hooves/`).
 
 ## Credits
 
@@ -219,8 +220,10 @@ A pony who is angry with you or has asked for space turns away. Sleeping ponies 
   brush strokes, the brush models and the princess hair handling. Thank you, modChad! Their mod
   also does wing preening, which this mod leaves to theirs.
 - **Brushing sounds:** modChad's own recordings, from the Grooming mod.
-- **Mitty's hoof model:** the hooves in `hooves/mitty_body.res` come from Mitty's `hooves.glb`
-  (source kept in `hooves/source/`). Thank you, Mitty!
+- **Mitty's hoof models:** the hooves in `hooves/mitty_body.res` and `hooves/mitty_v2_body.res`
+  come from Mitty's `hooves.glb` and `hoovespuffyfrogs.glb` (sources kept in `hooves/source/`).
+  The v2 file came without its rig, so its bone weights are borrowed from the first one
+  (`tools/bake_mitty_hooves.gd`). Thank you, Mitty!
 - **Sparkles, farrier tools and horseshoes:** made for this mod.
 - **Farrier sounds:** the game's own foley (metal, crunch, rasp and cloth sounds).
 - **Pictures:** taken in game.
@@ -255,7 +258,7 @@ godot --xr-mode off --path <project> -- --mod-src mare_care
 - `ui/`: the Settings page (`settings_tab.gd`) and the list of hoof models with their
   thumbnails (`hoof_models.gd`, `thumbs/`).
 - `farrier/body_hooves.gd`: the hoof models. Each sculpted model replaces the sole of every hoof in
-  the shared body mesh with a new one shaped in code; Mitty's comes from `hooves/`. Switching
+  the shared body mesh with a new one shaped in code; Mitty's two come from `hooves/`. Switching
   clears the game's merged-mesh caches and rebuilds the ponies.
 - `tools/hoof_viewer.gd`: renders every hoof model with the game's own shading, bare and shod, and
   writes the settings thumbnails. Run it with the mod at `res://mods/mare_care/`:

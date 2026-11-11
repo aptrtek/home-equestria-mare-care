@@ -10,6 +10,9 @@ extends RefCounted
 ##   "mitty":    the hooves from Mitty's hooves.glb (hooves/mitty_body.res, baked by
 ##               tools/bake_mitty_hooves.gd). His skin lists the bones in a different order from the
 ##               game's, so each vertex's bone indices are remapped by bone name.
+##   "mitty_v2": Mitty's second hooves, with big puffy frogs (hooves/mitty_v2_body.res). His file came
+##               without its rig, so the bake gave each vertex the bone weights of the nearest vertex
+##               in "mitty" (the rest of the body is the same mesh).
 ##   "heart", "cushion", "arch", "rings": modelled here from the game's own sole, whose rim and shape
 ##               are kept: the sole's cap is replaced by a recessed floor with real relief (a raised
 ##               rim, stepped rings, a bulging heart or bean-shaped frog), skinned to the hoof. Heart: a
@@ -23,7 +26,11 @@ extends RefCounted
 ## switch, a few ponies per frame), which can cause a brief hitch.
 
 const BODY_SCENE := "res://world/characters/body_shapes/mare.scn"
-const MITTY := "res://mods/mare_care/hooves/mitty_body.res"
+## The hoof models baked from Mitty's files: model id -> mesh (its skin is beside it, _skin.res).
+const BAKED := {
+	"mitty": "res://mods/mare_care/hooves/mitty_body.res",
+	"mitty_v2": "res://mods/mare_care/hooves/mitty_v2_body.res",
+}
 const HOOF_BONES := ["pony_finger_L", "pony_finger_R", "pony_hoof_L", "pony_hoof_R"]
 const PROCEDURAL := ["heart", "cushion", "arch", "rings"]
 ## How far the floor is recessed above the rim's bottom (mesh metres); the pads stand out of it.
@@ -66,7 +73,7 @@ static func _body() -> Dictionary:
 
 ## True when `model` (with or without the frog) is not what the body mesh carries now.
 static func needs_change(model: String, with_frog := true) -> bool:
-	var want := model if (model == "mitty" or model in PROCEDURAL) else "original"
+	var want := model if (model in BAKED or model in PROCEDURAL) else "original"
 	if want != applied: return true
 	return want in PROCEDURAL and with_frog != applied_frog
 
@@ -74,7 +81,7 @@ static func needs_change(model: String, with_frog := true) -> bool:
 ## Puts `model`'s hooves into the body mesh (`with_frog` false leaves the frog out). True when the
 ## mesh now carries them; false, with the mesh left as it was, if anything is not as expected.
 static func apply(model: String, with_frog := true) -> bool:
-	var want := model if (model == "mitty" or model in PROCEDURAL) else "original"
+	var want := model if (model in BAKED or model in PROCEDURAL) else "original"
 	if not needs_change(model, with_frog): return true
 	var body := _body()
 	if body.is_empty():
@@ -85,8 +92,8 @@ static func apply(model: String, with_frog := true) -> bool:
 		_original = {"arrays": mesh.surface_get_arrays(0), "format": mesh.surface_get_format(0), "material": mesh.surface_get_material(0)}
 	var arrays: Array = (_original.arrays as Array).duplicate(true)
 	var flags: int = int(_original.format) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
-	if want == "mitty":
-		arrays = _load_arrays(MITTY, body.skin, int((_original.arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()))
+	if want in BAKED:
+		arrays = _load_arrays(BAKED[want], body.skin, int((_original.arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()))
 		flags = 0
 	elif want in PROCEDURAL:
 		arrays = _sculpt(_original.arrays, body.skin, want, with_frog)
@@ -106,6 +113,7 @@ static func apply(model: String, with_frog := true) -> bool:
 ## How far the floor of the current hoof's sole is recessed (mesh metres): where dirt sits.
 static func floor_height() -> float:
 	if applied in PROCEDURAL: return RECESS
+	# Mitty's v2 has no floor to recess: its frog bulges lowest of all, like the game's domed sole.
 	return 0.004 if applied == "mitty" else 0.0
 
 

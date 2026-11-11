@@ -20,7 +20,7 @@ extends RefCounted
 ##   enabled=true     some mares pay in bits for hoof care (never a wife)
 ##   [hooves]
 ##   model="original" the hoof model: "original" (the game's own), "heart", "cushion", "arch" or "rings" (line-art
-##                    hooves) or "mitty" (hooves built into the body, by Mitty)
+##                    hooves), "mitty" or "mitty_v2" (hooves built into the body, by Mitty; v2 has puffy frogs)
 ##   show_frog=true   the frog on the underside of a lifted hoof (heart, cushion, arch, rings)
 ##   [extras]
 ##   hoof_licking=false   lick her lifted hooves clean until they sparkle (off unless switched on)
@@ -34,7 +34,7 @@ const SETTINGS := "settings.cfg"
 const JOBS := ["pick", "trim", "shoe", "oil"]
 const DEFAULT_DAYS := 7.0
 const STAMP := {"pick": "picked", "trim": "trimmed", "shoe": "shod", "oil": "oiled"}
-const MODELS := ["original", "heart", "cushion", "arch", "rings", "mitty"]
+const MODELS := ["original", "heart", "cushion", "arch", "rings", "mitty", "mitty_v2"]
 const DEFAULT_MODEL := "original"
 const DEFAULT_SPARKLE_MINUTES := 10.0
 const DEFAULT_HOOF_SPARKLE_MINUTES := 5.0
