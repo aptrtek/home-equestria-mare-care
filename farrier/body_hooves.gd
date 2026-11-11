@@ -33,7 +33,7 @@ const RECESS := 0.0055
 const CAP_BAND := 0.012
 const CAP_FLAT := 0.35
 ## Points per original edge segment round the new sole.
-const SUBDIVIDE := 3
+const SUBDIVIDE := 2
 ## Ponies rebuilt per step, and the pause between steps (seconds).
 const REBUILD_BATCH := 2
 const REBUILD_PAUSE := 0.12
@@ -335,7 +335,7 @@ static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -
 		for m in n_ring:
 			var lerped := verts[loop[m / SUBDIVIDE]].lerp(verts[loop[(m / SUBDIVIDE + 1) % n_edge]], float(m % SUBDIVIDE) / SUBDIVIDE)
 			outline.append(Vector2(lerped.x, lerped.z))
-		for pass_index in 10:
+		for pass_index in maxi(1, 10 * SUBDIVIDE * SUBDIVIDE / 9):
 			var rounded: Array[Vector2] = []
 			for m in n_ring: rounded.append((outline[(m + n_ring - 2) % n_ring] + outline[(m + n_ring - 1) % n_ring] * 2.0 + outline[m] * 3.0 + outline[(m + 1) % n_ring] * 2.0 + outline[(m + 2) % n_ring]) / 9.0)
 			outline = rounded
@@ -387,14 +387,14 @@ static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -
 		for i in n_edge:
 			var oi := loop[i]
 			var oj := loop[(i + 1) % n_edge]
-			var q0: int = first[i * SUBDIVIDE]
-			var q1: int = first[i * SUBDIVIDE + 1]
-			var q2: int = first[i * SUBDIVIDE + 2]
-			var q3: int = first[((i + 1) % n_edge) * SUBDIVIDE]
-			tris.append(Vector3i(oi, oj, q2))
-			tris.append(Vector3i(oi, q2, q1))
-			tris.append(Vector3i(oi, q1, q0))
-			tris.append(Vector3i(oj, q3, q2))
+			# The ring points facing this edge: q[0] .. q[SUBDIVIDE] (the last is the next edge's first).
+			var q: Array[int] = []
+			for k in SUBDIVIDE: q.append(first[i * SUBDIVIDE + k])
+			q.append(first[((i + 1) % n_edge) * SUBDIVIDE])
+			var mid := SUBDIVIDE - 1
+			tris.append(Vector3i(oi, oj, q[mid]))
+			for k in range(mid, 0, -1): tris.append(Vector3i(oi, q[k], q[k - 1]))
+			tris.append(Vector3i(oj, q[SUBDIVIDE], q[mid]))
 		for r in rings.size() - 1:
 			var outer: Array = rings[r]
 			var inner: Array = rings[r + 1]
@@ -444,13 +444,8 @@ static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -
 ## Radial rings of the new sole, from the boundary inwards (fraction of the way to the centre): close
 ## together inside, so shapes have vertices to live on.
 static func _rings() -> Array:
-	var out: Array = [1.0, 0.97, 0.94, 0.91, 0.88]
-	var t := 0.86
-	while t > 0.15:
-		out.append(t)
-		t -= 0.03
-	out.append(0.07)
-	return out
+	# Close together where the relief is (the rim walls and the frog's edge), sparse in the middle.
+	return [1.0, 0.95, 0.9, 0.85, 0.8, 0.75, 0.7, 0.65, 0.59, 0.52, 0.44, 0.35, 0.25, 0.14]
 
 
 ## The height (y) of the game's own sole cap at (x, z): inside its triangles, else its nearest vertex's.
@@ -507,13 +502,13 @@ static func _height(model: String, t: float, angle: float, nx: float, nz: float,
 			# Two soft steps (the rim's two lines) round the toe and sides, fading out toward the heel.
 			var outer := lerpf(0.99, 0.8, toe)
 			var inner := lerpf(0.99, 0.6, toe)
-			var width := lerpf(0.75, 0.1, toe)
-			floor_y = RECESS * (0.45 * _rise(t, outer, width) + 0.55 * _rise(t, inner, width))
+			var width := lerpf(0.75, 0.18, toe)
+			floor_y = RECESS * 0.7 * (0.45 * _rise(t, outer, width) + 0.55 * _rise(t, inner, width))
 			if with_frog: pad = 0.7 * _inside(_heart(nx, nz, 0.7, 0.8, 0.3), 0.14) * _lift(nz, -0.1, 0.25)
 		"rings":
 			# Terraced concentric rings, and a cleft slit tapering toward the toe.
-			floor_y = RECESS * (0.4 * _rise(t, lerpf(0.99, 0.84, toe), 0.11) + 0.6 * _rise(t, lerpf(0.99, 0.62, toe), 0.11))
-			if with_frog: floor_y += RECESS * 0.4 * _wedge(nx, nz) * smoothstep(0.68, 0.6, t)
+			floor_y = RECESS * 0.7 * (0.4 * _rise(t, lerpf(0.99, 0.84, toe), 0.18) + 0.6 * _rise(t, lerpf(0.99, 0.62, toe), 0.18))
+			if with_frog: floor_y += RECESS * 0.3 * _wedge(nx, nz) * smoothstep(0.68, 0.6, t)
 	pad *= smoothstep(0.97, 0.9, t)
 	y = maxf(y, floor_y - RECESS * pad)
 	return maxf(y, 0.0)
