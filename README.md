@@ -221,9 +221,8 @@ A pony who is angry with you or has asked for space turns away. Sleeping ponies 
   also does wing preening, which this mod leaves to theirs.
 - **Brushing sounds:** modChad's own recordings, from the Grooming mod.
 - **Mitty's hoof models:** the hooves in `hooves/mitty_body.res` and `hooves/mitty_v2_body.res`
-  come from Mitty's `hooves.glb` and `hoovespuffyfrogs.glb` (sources kept in `hooves/source/`).
-  The v2 file came without its rig, so its bone weights are borrowed from the first one
-  (`tools/bake_mitty_hooves.gd`). Thank you, Mitty!
+  come from Mitty's `hooves.glb` and `hoovespuffyfrogs1.glb` (sources kept in `hooves/source/`).
+  Thank you, Mitty!
 - **Sparkles, farrier tools and horseshoes:** made for this mod.
 - **Farrier sounds:** the game's own foley (metal, crunch, rasp and cloth sounds).
 - **Pictures:** taken in game.

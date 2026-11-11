@@ -10,9 +10,8 @@ extends RefCounted
 ##   "mitty":    the hooves from Mitty's hooves.glb (hooves/mitty_body.res, baked by
 ##               tools/bake_mitty_hooves.gd). His skin lists the bones in a different order from the
 ##               game's, so each vertex's bone indices are remapped by bone name.
-##   "mitty_v2": Mitty's second hooves, with big puffy frogs (hooves/mitty_v2_body.res). His file came
-##               without its rig, so the bake gave each vertex the bone weights of the nearest vertex
-##               in "mitty" (the rest of the body is the same mesh).
+##   "mitty_v2": Mitty's second hooves, with big puffy frogs (hooves/mitty_v2_body.res), baked the
+##               same way.
 ##   "heart", "cushion", "arch", "rings": modelled here from the game's own sole, whose rim and shape
 ##               are kept: the sole's cap is replaced by a recessed floor with real relief (a raised
 ##               rim, stepped rings, a bulging heart or bean-shaped frog), skinned to the hoof. Heart: a
