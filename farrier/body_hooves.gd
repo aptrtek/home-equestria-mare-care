@@ -305,13 +305,21 @@ static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -
 		# The edge's own heights are uneven; smoothed, they do not leave creases in the new sole.
 		var edge_y: Array[float] = []
 		for i in n_edge: edge_y.append(verts[loop[i]].y - low)
+		var raw_y: Array[float] = edge_y.duplicate()
 		for pass_index in 8:
 			var smoothed: Array[float] = []
 			for i in n_edge: smoothed.append((edge_y[(i + n_edge - 1) % n_edge] + 2.0 * edge_y[i] + edge_y[(i + 1) % n_edge]) * 0.25)
 			edge_y = smoothed
-		var edge_mean := 0.0
-		for i in n_edge: edge_mean += edge_y[i] / n_edge
-		for i in n_edge: edge_y[i] = lerpf(edge_y[i], edge_mean, 0.7)
+		# The sole's outline is a polygon of a few dozen corners; rings placed along it show every corner.
+		# Smoothed, they are clean curves.
+		var outline: Array[Vector2] = []
+		for m in n_ring:
+			var lerped := verts[loop[m / SUBDIVIDE]].lerp(verts[loop[(m / SUBDIVIDE + 1) % n_edge]], float(m % SUBDIVIDE) / SUBDIVIDE)
+			outline.append(Vector2(lerped.x, lerped.z))
+		for pass_index in 10:
+			var rounded: Array[Vector2] = []
+			for m in n_ring: rounded.append((outline[(m + n_ring - 2) % n_ring] + outline[(m + n_ring - 1) % n_ring] * 2.0 + outline[m] * 3.0 + outline[(m + 1) % n_ring] * 2.0 + outline[(m + 2) % n_ring]) / 9.0)
+			outline = rounded
 		var first_new := verts.size()
 		var rings: Array = []
 		var ring_list := _rings()
@@ -323,11 +331,12 @@ static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -
 				var frac := float(m % SUBDIVIDE) / SUBDIVIDE
 				var a_v := loop[i0]
 				var b_v := loop[(i0 + 1) % n_edge]
-				var lv := verts[a_v].lerp(verts[b_v], frac)
+				var lv := Vector3(outline[m].x, 0.0, outline[m].y)
 				var x := centre.x + (lv.x - centre.x) * t
 				var z := centre.y + (lv.z - centre.y) * t
 				var angle := atan2(lv.z - centre.y, lv.x - centre.x)
-				var edge_height := lerpf(edge_y[i0], edge_y[(i0 + 1) % n_edge], frac)
+				# Near the edge the heights are the edge's own (so the join is clean); inside, the smoothed ones.
+				var edge_height := lerpf(lerpf(edge_y[i0], edge_y[(i0 + 1) % n_edge], frac), lerpf(raw_y[i0], raw_y[(i0 + 1) % n_edge], frac), smoothstep(0.965, 1.0, t))
 				var y := low + _height(model, t, angle, (x - centre.x) / half.x, (z - centre.y) / half.y, edge_height, with_frog)
 				row.append(verts.size())
 				verts.append(Vector3(x, y, z))
@@ -411,7 +420,7 @@ static func _rings() -> Array:
 	var t := 0.86
 	while t > 0.09:
 		out.append(t)
-		t -= 0.022
+		t -= 0.018
 	out.append(0.05)
 	return out
 
@@ -420,8 +429,8 @@ static func _rings() -> Array:
 ## well over, so the sideways part of a steep normal is exaggerated and a gentle one flattened.
 static func _shade_normal(n: Vector3) -> Vector3:
 	var side := Vector2(n.x, n.z)
-	var steep := smoothstep(0.18, 0.5, side.length())
-	var out := Vector3(n.x * (1.0 + 2.5 * steep), n.y * (1.0 - 0.6 * steep), n.z * (1.0 + 2.5 * steep))
+	var steep := smoothstep(0.1, 0.5, side.length())
+	var out := Vector3(n.x * (1.0 + 1.9 * steep), n.y * (1.0 - 0.4 * steep), n.z * (1.0 + 1.9 * steep))
 	if steep < 0.01: out = Vector3(0.0, n.y, 0.0)
 	return out.normalized()
 
@@ -433,27 +442,30 @@ static func _height(model: String, t: float, angle: float, nx: float, nz: float,
 	var from_heel := absf(wrapf(angle - PI * 0.5, -PI, PI))
 	var rim_to_edge := clampf((t - 0.86) / 0.14, 0.0, 1.0)
 	var y := edge * rim_to_edge * rim_to_edge * (3.0 - 2.0 * rim_to_edge)
+	# 0 at the heel, 1 round the toe and sides: the rim is a semicircle that fades out toward the heel
+	# (the flat end of the foot has no line, the floor just slopes up from it).
+	var toe := smoothstep(0.9, 2.0, from_heel)
 	var floor_y := 0.0           # how high the floor is above the rim's bottom here
 	var pad := 0.0                # how far the frog stands out of the floor (0..1 of RECESS)
 	match model:
 		"heart":
-			floor_y = RECESS * _rise(t, 0.93, 0.07)
-			if with_frog: pad = 1.0 * _inside(_heart(nx, nz, 1.45, 0.0), 0.07)
+			floor_y = RECESS * _rise(t, lerpf(0.99, 0.92, toe), lerpf(0.5, 0.12, toe))
+			if with_frog: pad = 0.8 * _inside(_heart(nx, nz, 1.45, 0.0), 0.11)
 		"cushion":
 			# A dished sole with a soft rim, and a fat heart with a gentle wall.
-			floor_y = RECESS * _rise(t, 0.88, 0.16)
-			if with_frog: pad = 1.0 * _inside(_heart(nx, nz, 1.3, 0.0), 0.13)
+			floor_y = RECESS * _rise(t, lerpf(0.99, 0.86, toe), lerpf(0.5, 0.2, toe))
+			if with_frog: pad = 0.85 * _inside(_heart(nx, nz, 1.3, 0.0), 0.16)
 		"arch":
-			# Two steps (the rim's two lines) round the toe and sides, ending square at the heel.
-			var gate := smoothstep(0.82, 0.9, from_heel)
-			var outer := lerpf(0.99, 0.84, gate)
-			var inner := lerpf(0.99, 0.64, gate)
-			floor_y = RECESS * (0.45 * _rise(t, outer, 0.035) + 0.55 * _rise(t, inner, 0.035))
-			if with_frog: pad = 0.9 * _inside(_heart(nx, nz, 0.62, 0.4), 0.06)
+			# Two soft steps (the rim's two lines) round the toe and sides, fading out toward the heel.
+			var outer := lerpf(0.99, 0.84, toe)
+			var inner := lerpf(0.99, 0.66, toe)
+			var width := lerpf(0.5, 0.075, toe)
+			floor_y = RECESS * (0.45 * _rise(t, outer, width) + 0.55 * _rise(t, inner, width))
+			if with_frog: pad = 0.8 * _inside(_heart(nx, nz, 0.62, 0.4), 0.1)
 		"rings":
 			# Terraced concentric rings, and a cleft slit tapering toward the toe.
-			floor_y = RECESS * (0.4 * _rise(t, 0.88, 0.04) + 0.6 * _rise(t, 0.66, 0.04))
-			if with_frog: floor_y += RECESS * 0.7 * _wedge(nx, nz) * smoothstep(0.68, 0.6, t)
+			floor_y = RECESS * (0.4 * _rise(t, 0.88, 0.09) + 0.6 * _rise(t, 0.66, 0.09))
+			if with_frog: floor_y += RECESS * 0.55 * _wedge(nx, nz) * smoothstep(0.68, 0.6, t)
 	pad *= smoothstep(0.8, 0.68, t)
 	y = maxf(y, floor_y - RECESS * pad)
 	return maxf(y, 0.0)
