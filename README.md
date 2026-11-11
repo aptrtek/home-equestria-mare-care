@@ -34,6 +34,12 @@ out, and you can use them on any willing pony.
    - **Hoof oil:** work it in, and the hoof shines for a few minutes.
    - **Hoof massage:** with nothing in your hand, hold the mouse button on her lifted hoof (desktop),
      or rub it slowly with your hand (VR). She relaxes into it. Grown mares only.
+   - **Licking her hooves clean:** with nothing in your hand, get your face right up to her lifted
+     hoof and hold the mouse button (desktop), or lick it slowly in VR (each fresh touch of your
+     mouth is a kiss that helps too). The dirt comes away as you go, and once it's clean the hoof
+     sparkles. It counts as picking, and nobody pays for it. Some mares are bemused, shy ones get
+     flustered, and the bolder, bossier ones really enjoy it. Lick all four and she'll remember it.
+     Grown mares only.
 3. **Walk away**, or ask for another hoof, and she puts it down.
 
 A lifted hoof shows its underside. Pick how it looks in the settings (see Settings below): the

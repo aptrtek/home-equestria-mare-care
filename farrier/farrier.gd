@@ -26,6 +26,7 @@ const CARE := preload("res://mods/mare_care/farrier/hoof_care.gd")
 const LEDGER := preload("res://world/mechanics/ledger.gd")
 const MODELS := preload("res://mods/mare_care/farrier/models.gd")
 const SPARKLE := preload("res://mods/mare_care/brushing/sparkle.gd")
+const PLAYER_MOUTH := preload("res://player/player_mouth.gd")
 const BODY_HOOVES := preload("res://mods/mare_care/farrier/body_hooves.gd")
 const INPUT := preload("res://mods/mare_care/brushing/input_catcher.gd")
 
@@ -44,6 +45,27 @@ const VR_MASSAGE_REACH := 0.08
 const VR_MASSAGE_SPEED := Vector2(0.02, 0.6)
 const MASSAGE_THOUGHT := "Anon massaged all four of my hooves. I feel like I'm walking on clouds..."
 const MASSAGE_MEMORY := "Anon gave you a slow, soothing hoof massage on all four hooves."
+## Licking a lifted hoof clean until it sparkles: seconds of licking, empty-handed with your face
+## close to her sole (desktop: the mouth within LICK_REACH of it; VR: your mouth moving slowly
+## over it, and each fresh touch is a kiss worth KISS_BOOST). Grown mares only. It cleans the hoof
+## (it counts as picking, unpaid) and leaves it sparkling.
+const LICK_SECONDS := 12.0
+const LICK_REACH := 0.55
+const VR_LICK_REACH := 0.07
+const VR_LICK_SPEED := Vector2(0.01, 0.5)
+const KISS_BOOST := 0.12
+const KISS_GAP := 0.5
+const LICK_COOLDOWN := 600.0
+## How she takes it. Most mares are a little bemused; some love it (the bolder, bossier ones);
+## shy ones are flustered. Named mares are set here, every other mare by a fixed roll on her id.
+const DOMINANT := ["rainbow_dash", "rarity"]
+const SHY := ["fluttershy"]
+const LICK_THOUGHTS := {
+	"dominant": "Anon licked all four of my hooves until they sparkled, so eager to please. Good. I could get very used to that.",
+	"neutral": "Anon licked my hooves clean until they sparkled. Strange... but honestly, kind of sweet.",
+	"shy": "Anon licked my hooves until they sparkled! I didn't know where to look... but I didn't want him to stop.",
+}
+const LICK_MEMORY := "Anon licked all four of your hooves clean until they sparkled."
 const DESKTOP_REACH := 2.4
 ## A leg is aimed at within this of its lower part (sole up LEG_HEIGHT), metres at body scale 1.
 const LEG_AIM := 0.06
@@ -103,6 +125,9 @@ const MEMORIES := {
 	"oil": "Anon rubbed hoof oil into your hooves until they shone.",
 }
 
+## VR licking: whether the mouth is on her sole, and the gap before another kiss counts.
+var _mouth_on := false
+var _kiss_clock := 0.0
 var mod_id := "mare_care"
 
 ## The hoof being worked on: {pony, leg, record, pieces: [Node3D], nip, rasp, oil, pull,
@@ -202,10 +227,11 @@ func _desktop_target() -> Dictionary:
 		tool = {"item": null, "kind": "massage"}
 	var camera: Camera3D = _inventory().get("camera")
 	if camera == null: return {}
+	if tool.kind == "massage" and _mouth_near(camera, LICK_REACH): tool.kind = "lick"
 	var origin := camera.global_position
 	var forward := -camera.global_basis.z
 	var hit := _aim_hoof(origin, forward, tool.kind)
-	if hit.is_empty() and tool.kind != "massage": hit = _aim_leg(origin, origin + forward * DESKTOP_REACH)
+	if hit.is_empty() and tool.kind != "massage" and tool.kind != "lick": hit = _aim_leg(origin, origin + forward * DESKTOP_REACH)
 	if hit.is_empty(): return {}
 	hit.kind = tool.kind
 	hit.item = tool.item
@@ -217,6 +243,14 @@ func _empty_hand() -> bool:
 	if inventory == null or not bool(inventory.get("_desktop")): return false
 	var held: Dictionary = inventory.get("held")
 	return not held.has("desktop") or not is_instance_valid(held.desktop)
+
+
+## True when the player's mouth is within `reach` (at her body scale) of her lifted sole.
+func _mouth_near(camera: Node3D, reach: float) -> bool:
+	if _session.is_empty() or not is_instance_valid(_session.pony) or camera == null: return false
+	var sole := HOOVES.sole_point(_session.pony, _session.leg)
+	if not sole.is_finite(): return false
+	return PLAYER_MOUTH.point(camera).distance_to(sole) <= reach * HOOVES.scale_of(_session.pony)
 
 
 ## Hoof massages are for grown mares.
@@ -347,6 +381,9 @@ func _hoof_hint(hit: Dictionary) -> String:
 			return ("Click · Drive the nail  %d/%d" if hit.has("nail") else "Hammer: aim at a nail  %d/%d") % [driven, MODELS.NAIL_COUNT]
 		"hoof_oil":
 			return "Hold click · Oil the hoof  %d%%" % int(100.0 * float(_session.oil))
+		"lick":
+			if float(_session.get("lick", 0.0)) >= 1.0: return "Sparkling clean"
+			return "Hold click · Lick her hoof clean  %d%%" % int(100.0 * float(_session.get("lick", 0.0)))
 		"massage":
 			if float(_session.get("massage", 0.0)) >= 1.0: return "Hoof massaged"
 			return "Hold click · Massage her hoof  %d%%" % int(100.0 * float(_session.get("massage", 0.0)))
@@ -453,6 +490,9 @@ func _work(kind: String, hit: Dictionary, dt: float, held: bool) -> void:
 			if float(_session.oil) >= 1.0:
 				_done("oil")
 				SPARKLE.of(pony).call("shine_bone", "hoof_" + str(_session.leg), HOOVES.BONES[_session.leg], OIL_SHINE)
+		"lick":
+			if float(_session.get("lick", 0.0)) >= 1.0: return
+			_lick_progress(float(hit.get("boost", dt / LICK_SECONDS)), hit.point)
 		"massage":
 			if float(_session.get("massage", 0.0)) >= 1.0: return
 			_session.massage = minf(1.0, float(_session.get("massage", 0.0)) + dt / MASSAGE_SECONDS)
@@ -820,6 +860,61 @@ func _massaged() -> void:
 	_grateful(pony, 2 if all_four else 1, MASSAGE_THOUGHT if all_four else "", MASSAGE_MEMORY if all_four else "", "relaxed")
 
 
+## Licking moves on by `amount` (0..1): her dirt comes away as it goes, and at 1 the hoof is clean
+## and sparkles.
+func _lick_progress(amount: float, at: Vector3) -> void:
+	var pony: Node3D = _session.pony
+	if not _session.has("lick_pieces"): _session.lick_pieces = _pieces_left()
+	_session.lick = minf(1.0, float(_session.get("lick", 0.0)) + amount)
+	var keep := ceili((1.0 - float(_session.lick)) * int(_session.lick_pieces))
+	for piece: Variant in (_session.pieces as Array).duplicate():
+		if _pieces_left() <= keep: break
+		if is_instance_valid(piece) and not (piece as Node).has_meta("popped"): _pop(piece)
+	var expressions: Variant = pony.get("expressions")
+	var keen := _disposition(pony) == "dominant"
+	if expressions != null and expressions.has_method("touch"):
+		expressions.touch("mare_care_hoof", 0.7 if keen else 0.5, lerpf(0.45, 0.95 if keen else 0.8, float(_session.lick)))
+	if _disposition(pony) == "shy" and expressions != null and expressions.has_method("fluster") and _rng.randf() < 0.05: expressions.fluster(0.4)
+	_rhythm("oil", at, 0.75, 1.4)
+	if float(_session.lick) >= 1.0: _licked()
+
+
+## A hoof licked clean: it counts as picked (unpaid), sparkles, and she reacts in her own way; once all
+## four have been licked within the cooldown, a thought and a memory.
+func _licked() -> void:
+	var pony: Node3D = _session.pony
+	var record: Dictionary = _session.record
+	if CARE.due(record, "pick"): CARE.mark(mod_id, record, "pick")
+	_shoes().refresh(pony)
+	SPARKLE.of(pony).call("shine_bone", "hoof_" + str(_session.leg), HOOVES.BONES[_session.leg], OIL_SHINE)
+	var now := Time.get_unix_time_from_system()
+	var fresh := now - float(record.get("licked_at", 0.0)) >= LICK_COOLDOWN
+	record["licked_at"] = now
+	Mods.save_changed()
+	_sigh_soft(pony)
+	var way := _disposition(pony)
+	print("[mare_care] %s: %s hoof licked clean (%s)" % [_pony_id(pony), HOOVES.NAMES[_session.leg], way])
+	if not fresh: return
+	var all_four := true
+	for leg: String in HOOVES.LEGS:
+		var r: Dictionary = CARE.hooves(mod_id, _pony_id(pony)).get(leg, {})
+		if now - float(r.get("licked_at", 0.0)) > LICK_COOLDOWN * 1.5: all_four = false
+	var mood := {"dominant": "happy", "shy": "shy", "neutral": "amused"}[way] as String
+	var friendship := (2 if way == "dominant" else 1) + (1 if all_four else 0)
+	_grateful(pony, friendship, str(LICK_THOUGHTS[way]) if all_four else "", LICK_MEMORY if all_four else "", mood)
+
+
+## How she takes having her hooves licked: "dominant" (she loves it), "shy" or "neutral".
+func _disposition(pony: Node3D) -> String:
+	var id := _pony_id(pony)
+	if id in DOMINANT: return "dominant"
+	if id in SHY: return "shy"
+	var roll := absi(hash("mare_care_lick_" + id)) % 100
+	if roll < 30: return "dominant"
+	if roll < 55: return "shy"
+	return "neutral"
+
+
 ## Friendship, and when `thought` is given her thought, a memory and (care given freely, an adult
 ## already fond of Anon) a little love.
 func _grateful(pony: Node3D, friendship: int, thought: String, memory: String, mood: String) -> void:
@@ -909,6 +1004,7 @@ func _sense_vr(game: Node, dt: float) -> void:
 	var inventory: Node = game.get("inventory")
 	if inventory == null or bool(inventory.get("_desktop")): return
 	_sense_vr_massage(inventory, dt)
+	_sense_vr_lick(dt)
 	var held: Dictionary = inventory.get("held")
 	for side: String in held.keys():
 		if side == "desktop": continue
@@ -932,6 +1028,32 @@ func _sense_vr(game: Node, dt: float) -> void:
 		var leg := _aim_leg(tip + Vector3.UP * 0.05, tip - Vector3.UP * 0.05)
 		if not leg.is_empty() and (_session.is_empty() or _session.pony != leg.pony or _session.leg != leg.leg):
 			if _pending.is_empty() and _willing(leg.pony): _ask_lift(leg.pony, leg.leg)
+
+
+## VR: your mouth on her lifted sole. Moving slowly over it licks it; each fresh touch is a kiss.
+func _sense_vr_lick(dt: float) -> void:
+	_kiss_clock = maxf(0.0, _kiss_clock - dt)
+	if _session.is_empty() or not _can_massage(_session.pony):
+		_mouth_on = false
+		return
+	var camera := get_viewport().get_camera_3d()
+	var near := _mouth_near(camera, VR_LICK_REACH)
+	if not near:
+		_mouth_on = false
+		_last_tip.erase("mouth")
+		return
+	var mouth := PLAYER_MOUTH.point(camera)
+	var hit := {"what": "hoof", "pony": _session.pony, "leg": _session.leg, "point": mouth}
+	if not _mouth_on and _kiss_clock <= 0.0:
+		_kiss_clock = KISS_GAP
+		hit.boost = KISS_BOOST
+		_work("lick", hit, dt, true)
+		hit.erase("boost")
+	_mouth_on = true
+	var speed := 0.0
+	if _last_tip.has("mouth"): speed = mouth.distance_to(_last_tip["mouth"]) / dt
+	_last_tip["mouth"] = mouth
+	if speed >= VR_LICK_SPEED.x and speed <= VR_LICK_SPEED.y: _work("lick", hit, dt, true)
 
 
 ## VR: an empty hand rubbing slowly on her lifted sole massages it.
