@@ -483,11 +483,11 @@ static func _height(model: String, t: float, angle: float, nx: float, nz: float,
 	match model:
 		"heart":
 			floor_y = RECESS * _rise(t, lerpf(0.99, 0.78, toe), lerpf(0.75, 0.14, toe))
-			if with_frog: pad = 0.8 * _inside(_heart(nx, nz, 1.3, 1.55, -0.1), 0.12) * _lift(nz, -0.75, 0.2)
+			if with_frog: pad = 0.8 * _inside(_pillow(t, from_heel, 0.8, 0.5), 0.12) * _lift(nz, -0.75, 0.2)
 		"cushion":
 			# A dished sole with a soft rim, and a fat heart with a gentle wall.
 			floor_y = RECESS * _rise(t, lerpf(0.99, 0.74, toe), lerpf(0.75, 0.22, toe))
-			if with_frog: pad = 0.85 * _inside(_heart(nx, nz, 1.2, 1.4, -0.05), 0.16) * _lift(nz, -0.65, 0.2)
+			if with_frog: pad = 0.85 * _inside(_pillow(t, from_heel, 0.76, 0.4), 0.17) * _lift(nz, -0.7, 0.2)
 		"arch":
 			# Two soft steps (the rim's two lines) round the toe and sides, fading out toward the heel.
 			var outer := lerpf(0.99, 0.8, toe)
@@ -502,6 +502,14 @@ static func _height(model: String, t: float, angle: float, nx: float, nz: float,
 	pad *= smoothstep(0.97, 0.9, t)
 	y = maxf(y, floor_y - RECESS * pad)
 	return maxf(y, 0.0)
+
+
+## Signed distance (in sole radii, negative inside) to a pillow-shaped frog that follows the sole's own
+## outline: `reach` of the way out to the rim round the toe, narrowing toward the heel into two lobes
+## with a notch of `notch` between them. `from_heel` is the angle from the heel (0) round to the toe (PI).
+static func _pillow(t: float, from_heel: float, reach: float, notch: float) -> float:
+	var radius := reach - 0.14 * smoothstep(1.7, 0.5, from_heel) - notch * exp(-pow(from_heel / 0.3, 2.0))
+	return t - radius
 
 
 ## 0 at `from_z` (where the frog meets the rim), rising gently to 1 over `span` in z toward the heel.
