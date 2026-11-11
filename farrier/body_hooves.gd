@@ -431,10 +431,10 @@ static func _sculpt(source: Array, skin: Skin, model: String, with_frog: bool) -
 static func _rings() -> Array:
 	var out: Array = [1.0, 0.97, 0.94, 0.91, 0.88]
 	var t := 0.86
-	while t > 0.09:
+	while t > 0.15:
 		out.append(t)
-		t -= 0.018
-	out.append(0.05)
+		t -= 0.03
+	out.append(0.07)
 	return out
 
 
