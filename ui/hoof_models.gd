@@ -40,6 +40,12 @@ const MODELS: Array[Dictionary] = [
 		"text": "Hooves modelled into the body itself, by Mitty. Shoes sit on them.",
 		"thumb": "res://mods/mare_care/ui/thumbs/hoof_mitty.png",
 	},
+	{
+		"id": "mitty_v2",
+		"name": "Mitty's v2",
+		"text": "Mitty's second hooves, with big puffy frogs that bulge out of the sole. Shoes sit on them.",
+		"thumb": "res://mods/mare_care/ui/thumbs/hoof_mitty_v2.png",
+	},
 ]
 
 

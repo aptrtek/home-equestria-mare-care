@@ -15,7 +15,7 @@ const BODY := preload("res://mods/mare_care/farrier/body_hooves.gd")
 const MODELS := preload("res://mods/mare_care/farrier/models.gd")
 const HOOVES := preload("res://mods/mare_care/farrier/hooves.gd")
 const LEG := "RL"
-const LABELS := {"original": "Original", "heart": "Heart", "cushion": "Cushion", "arch": "Arch", "rings": "Rings", "mitty": "Mitty's"}
+const LABELS := {"original": "Original", "heart": "Heart", "cushion": "Cushion", "arch": "Arch", "rings": "Rings", "mitty": "Mitty's", "mitty_v2": "Mitty's v2"}
 const CELL := Vector2i(560, 480)
 
 var world: Node3D
@@ -31,7 +31,7 @@ func _initialize() -> void:
 func run() -> void:
 	root.size = CELL
 	_build_world()
-	var wanted: PackedStringArray = OS.get_environment("VIEW_MODELS").split(",") if OS.get_environment("VIEW_MODELS") != "" else PackedStringArray(["original", "heart", "cushion", "arch", "rings", "mitty"])
+	var wanted: PackedStringArray = OS.get_environment("VIEW_MODELS").split(",") if OS.get_environment("VIEW_MODELS") != "" else PackedStringArray(["original", "heart", "cushion", "arch", "rings", "mitty", "mitty_v2"])
 	var shots := {}
 	await _new_pony()   # warm-up: the first pony built is drawn from the game's cached original mesh
 	for entry in wanted:
