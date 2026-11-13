@@ -238,7 +238,7 @@ func _build(entry: Dictionary) -> void:
 		_on_pay.bind(entry), "pay")
 
 	_heading(list, "Tools in your briefcase", font)
-	_note(entry, "Every tool Mare Care gives you. Switch one off and it leaves your briefcase (a tool in your hand goes when you put it away); switch it back on and it returns if there is room. Horseshoes need the nippers and hammer to be fitted, and a hoof sparkles after oil or licking, so keep what you use." + (" While the game's Grooming mod is on, Mare Care's two brushes start off, since Grooming gives you its own. Switch them on for Mare Care's brushing and the sparkle." if Mods.is_active("grooming") else ""))
+	_note(entry, "Every tool Mare Care gives you. Switch one off and it leaves your briefcase (a tool in your hand goes when you put it away); switch it back on and it returns if there is room. Horseshoes need the nippers and hammer to be fitted, and a hoof sparkles after oil or licking, so keep what you use." + (" While the game's Grooming mod is on, Mare Care's two brushes start off, since Grooming gives you its own; a mane or tail brushed with Grooming's brush sparkles too." if Mods.is_active("grooming") else ""))
 	for tool: Array in CARE.TOOLS:
 		_toggle_row(entry, str(tool[2]), "", CARE.tool_on(str(tool[0])),
 			_on_tool.bind(str(tool[0]), entry), "tool_" + str(tool[0]))

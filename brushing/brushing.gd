@@ -75,6 +75,7 @@ var _desk_stroke := 0.0
 var _desk_item: Node3D
 var _sound_clock := 0.0
 var _refused: Dictionary = {}    # pony -> msec
+var _grooming_seen: Dictionary = {}   # finished Grooming brushings already sparkled (session pose id -> true)
 var _audio: AudioStreamPlayer3D
 var _catcher: Node
 var _loop: AudioStreamPlayer3D
@@ -264,6 +265,35 @@ func _physics_process(delta: float) -> void:
 	_sense_desktop(dt)
 	_sense_vr_brushes(game, dt)
 	_expire()
+	_watch_grooming()
+
+
+## The game's bundled Grooming mod (0.3.1 and later) has its own mane brush. When one of its mane or
+## tail brushings is finished, her hair sparkles as it does after Mare Care's brush (when the sparkle
+## setting is on). Grooming has no signal for it, so its sessions are read; if a later Grooming keeps
+## them differently, nothing happens.
+func _watch_grooming() -> void:
+	var grooming := get_tree().get_first_node_in_group("grooming_mod")
+	if grooming == null:
+		_grooming_seen.clear()
+		return
+	var sessions: Variant = grooming.get("_sessions")
+	if not sessions is Dictionary: return
+	var live := {}
+	for pony: Variant in (sessions as Dictionary).keys():
+		var session: Variant = sessions[pony]
+		if not is_instance_valid(pony) or not pony is Node3D or not session is Dictionary: continue
+		var tool := str((session as Dictionary).get("tool", ""))
+		if tool not in ["mane", "tail"] or not bool((session as Dictionary).get("done", false)): continue
+		var pose: Variant = (session as Dictionary).get("pose")
+		var key: int = (pose as Object).get_instance_id() if is_instance_valid(pose) else hash(session)
+		live[key] = true
+		if _grooming_seen.has(key): continue
+		_grooming_seen[key] = true
+		SPARKLE.of(pony as Node3D).call("shine", tool)
+		print("[mare_care] %s's %s sparkles after Grooming's brush" % [_pony_id(pony as Node3D), tool])
+	for key: int in _grooming_seen.keys():
+		if not live.has(key): _grooming_seen.erase(key)
 
 
 func _sense_desktop(dt: float) -> void:
