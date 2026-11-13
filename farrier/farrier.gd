@@ -162,23 +162,8 @@ func _ready() -> void:
 	if Mods.game != null: _on_world(Mods.game)
 
 
-func _on_world(game: Node) -> void:
+func _on_world(_game: Node) -> void:
 	_place_catcher.call_deferred()
-	var state := Mods.state(mod_id)
-	if bool(state.get("granted_farrier", false)): return
-	var inventory: Node = game.get("inventory")
-	if inventory == null: return
-	var store: Variant = inventory.get("inventory")
-	if store == null or not store.has_method("grant"): return
-	var ok := true
-	for id: String in TOOLS:
-		if int(store.grant(id)) < 0: ok = false
-	if ok:
-		state["granted_farrier"] = true
-		Mods.save_changed()
-		print("[mare_care] farrier tools added to the briefcase")
-	else:
-		print("[mare_care] no room for all the farrier tools yet; the rest come next load")
 
 
 func _place_catcher() -> void:

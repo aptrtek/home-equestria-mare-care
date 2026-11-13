@@ -11,7 +11,8 @@ Built for game version `0.3.0-maredev`. Works on desktop and in VR.
 
 ## Farrier
 
-The first time you load a world with the mod on, a farrier's kit appears in your briefcase: a
+The first time you load a world with the mod on, a farrier's kit appears in your briefcase (each
+tool can be switched off in the settings; see Settings below): a
 **Hoof Pick**, **Hoof Nippers**, a **Hoof Rasp**, a **Farrier's Hammer**, **Hoof Oil**, and
 horseshoes in four styles: **Steel**, **Silver**, **Gold** and **Rainbow**. The tools never run
 out, and you can use them on any willing pony.
@@ -104,7 +105,12 @@ away and are saved for next time.
   Cushion, Arch and Rings).
 - **Hooves get dirty:** switch this off and hooves never need picking, trimming or oiling, and
   shoes never work loose. The tools, shoes and hoof models all still work, so you can
-  keep just the horseshoes and the new hooves.
+  keep just the horseshoes and the new hooves. Hooves still sparkle: oil one, or lick it clean,
+  and it shines as usual (no one pays for it, since nothing needed doing).
+- **Tools in your briefcase:** one switch for each tool the mod gives you (hoof pick, nippers,
+  rasp, hammer, hoof oil, the four horseshoes, the two brushes). Switch one off and it leaves your
+  briefcase; a tool in your hand goes as soon as you put it away. Switch it back on and it returns
+  if there is room. Tools you dropped in the world stay where they are.
 - **The spa cares for hooves:** see below.
 - **How long until care is due again:** one slider each for dirt building up, a trim wearing
   off, shoes working loose and the oil wearing off, from every day to every 30 days, or never
@@ -157,6 +163,19 @@ enabled=true
 [hooves]
 model="original"
 show_frog=true
+
+[tools]
+hoof_pick=true
+nippers=true
+rasp=true
+hammer=true
+hoof_oil=true
+shoe_steel=true
+shoe_silver=true
+shoe_gold=true
+shoe_rainbow=true
+mane_brush=true
+coat_brush=true
 
 [extras]
 hoof_licking=false

@@ -97,23 +97,8 @@ func _ready() -> void:
 	if Mods.game != null: _on_world(Mods.game)
 
 
-func _on_world(game: Node) -> void:
+func _on_world(_game: Node) -> void:
 	_place_catcher.call_deferred()
-	# Hand out the brushes once per world.
-	var state := Mods.state(mod_id)
-	if bool(state.get("granted_brushes", false)): return
-	var inventory: Node = game.get("inventory")
-	if inventory == null: return
-	var store: Variant = inventory.get("inventory")
-	if store == null or not store.has_method("grant"): return
-	var mane: int = store.grant(MANE_BRUSH)
-	var coat: int = store.grant(COAT_BRUSH)
-	if mane >= 0 and coat >= 0:
-		state["granted_brushes"] = true
-		Mods.save_changed()
-		print("[mare_care] brushes added to the briefcase")
-	else:
-		print("[mare_care] no room for the brushes yet; trying again next load")
 
 
 func _on_world_closed(_game: Node) -> void:

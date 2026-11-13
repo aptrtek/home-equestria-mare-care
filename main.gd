@@ -4,6 +4,7 @@ extends Node
 ## Each kind of care is its own child node:
 ##   Brushing (brushing/): mane, tail and coat brushes, built on modChad's Grooming mod; a freshly
 ##     brushed mane or tail sparkles.
+##   Kit (farrier/kit.gd): gives the tools to the briefcase and takes them back when switched off.
 ##   SettingsTab (ui/): Mare Care's page in Settings (hoof model, upkeep, payment, sparkle).
 ##   Farrier (farrier/): hoof pick, nippers and rasp, horseshoes and hoof oil. Shoes (farrier/shoes.gd)
 ##     keeps every shod pony's shoes on her hooves.
@@ -15,6 +16,7 @@ const SHOES := preload("res://mods/mare_care/farrier/shoes.gd")
 const FARRIER := preload("res://mods/mare_care/farrier/farrier.gd")
 const CARE := preload("res://mods/mare_care/farrier/hoof_care.gd")
 const SETTINGS_TAB := preload("res://mods/mare_care/ui/settings_tab.gd")
+const KIT := preload("res://mods/mare_care/farrier/kit.gd")
 const SPA_CARE := preload("res://mods/mare_care/farrier/spa_care.gd")
 const BODY_HOOVES := preload("res://mods/mare_care/farrier/body_hooves.gd")
 
@@ -24,6 +26,7 @@ func _ready() -> void:
 	CARE.load_settings(ID)
 	# Body hoof models change the shared body mesh, so they go in before any pony is built.
 	BODY_HOOVES.apply(CARE.hoof_model, CARE.show_frog)
+	_add("Kit", KIT)
 	_add("Brushing", BRUSHING)
 	_add("Shoes", SHOES)
 	_add("Farrier", FARRIER)

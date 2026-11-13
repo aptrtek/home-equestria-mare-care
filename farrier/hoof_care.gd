@@ -24,6 +24,10 @@ extends RefCounted
 ##   show_frog=true   the frog on the underside of a lifted hoof (heart, cushion, arch, rings)
 ##   [extras]
 ##   hoof_licking=false   lick her lifted hooves clean until they sparkle (off unless switched on)
+##   [tools]               one switch per tool; false takes it out of the briefcase and stops it being given
+##   hoof_pick=true  nippers=true  rasp=true  hammer=true  hoof_oil=true
+##   shoe_steel=true  shoe_silver=true  shoe_gold=true  shoe_rainbow=true
+##   mane_brush=true  coat_brush=true
 ##   [brushing]
 ##   sparkle=true     a freshly brushed mane or tail sparkles
 ##   sparkle_minutes=10.0   for how long
@@ -38,8 +42,25 @@ const MODELS := ["original", "heart", "cushion", "arch", "rings", "mitty"]
 const DEFAULT_MODEL := "original"
 const DEFAULT_SPARKLE_MINUTES := 10.0
 const DEFAULT_HOOF_SPARKLE_MINUTES := 5.0
+## Every tool the mod puts in the briefcase: settings key, item id, name. farrier/kit.gd gives and
+## takes them back.
+const TOOLS := [
+	["hoof_pick", "food:care-hoof-pick", "Hoof Pick"],
+	["nippers", "food:care-nippers", "Hoof Nippers"],
+	["rasp", "food:care-rasp", "Hoof Rasp"],
+	["hammer", "food:care-hammer", "Farrier's Hammer"],
+	["hoof_oil", "food:care-hoof-oil", "Hoof Oil"],
+	["shoe_steel", "food:care-shoe-steel", "Steel Horseshoes"],
+	["shoe_silver", "food:care-shoe-silver", "Silver Horseshoes"],
+	["shoe_gold", "food:care-shoe-gold", "Gold Horseshoes"],
+	["shoe_rainbow", "food:care-shoe-rainbow", "Rainbow Horseshoes"],
+	["mane_brush", "food:care-mane-brush", "Mane & Tail Brush"],
+	["coat_brush", "food:care-coat-brush", "Coat Brush"],
+]
 
 static var _days := {}
+## Tool key -> whether it is kept in the briefcase (every tool by default).
+static var _tools := {}
 static var dirt_enabled := true
 static var spa_care := true
 static var pay_enabled := true
@@ -74,6 +95,8 @@ static func load_settings(mod_id: String) -> void:
 	sparkle_minutes = clampf(float(config.get_value("brushing", "sparkle_minutes", DEFAULT_SPARKLE_MINUTES)), 1.0, 60.0)
 	hoof_sparkle_on = bool(config.get_value("brushing", "hoof_sparkle", true))
 	hoof_sparkle_minutes = clampf(float(config.get_value("brushing", "hoof_sparkle_minutes", DEFAULT_HOOF_SPARKLE_MINUTES)), 1.0, 60.0)
+	for tool: Array in TOOLS:
+		_tools[tool[0]] = bool(config.get_value("tools", str(tool[0]), true))
 	if not loaded:
 		save_settings(mod_id)
 	print("[mare_care] settings: hooves get dirty %s, upkeep days %s, pay %s, hoof model %s, frog %s, sparkle %s (%s min)  (%s)" % [
@@ -95,6 +118,8 @@ static func save_settings(mod_id: String) -> void:
 	config.set_value("brushing", "sparkle_minutes", sparkle_minutes)
 	config.set_value("brushing", "hoof_sparkle", hoof_sparkle_on)
 	config.set_value("brushing", "hoof_sparkle_minutes", hoof_sparkle_minutes)
+	for tool: Array in TOOLS:
+		config.set_value("tools", str(tool[0]), tool_on(str(tool[0])))
 	config.save(_path(mod_id))
 
 
@@ -111,7 +136,17 @@ static func reset_settings(mod_id: String) -> void:
 	sparkle_minutes = DEFAULT_SPARKLE_MINUTES
 	hoof_sparkle_on = true
 	hoof_sparkle_minutes = DEFAULT_HOOF_SPARKLE_MINUTES
+	for tool: Array in TOOLS:
+		_tools[tool[0]] = true
 	save_settings(mod_id)
+
+
+static func tool_on(key: String) -> bool:
+	return bool(_tools.get(key, true))
+
+
+static func set_tool(key: String, on: bool) -> void:
+	_tools[key] = on
 
 
 static func set_days(job: String, value: float) -> void:

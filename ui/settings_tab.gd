@@ -237,6 +237,12 @@ func _build(entry: Dictionary) -> void:
 	_toggle_row(entry, "Mares pay for hoof care", "Some mares pay in bits for the jobs a hoof needed. Never your wife.", CARE.pay_enabled,
 		_on_pay.bind(entry), "pay")
 
+	_heading(list, "Tools in your briefcase", font)
+	_note(entry, "Every tool Mare Care gives you. Switch one off and it leaves your briefcase (a tool in your hand goes when you put it away); switch it back on and it returns if there is room. Horseshoes need the nippers and hammer to be fitted, and a hoof sparkles after oil or licking, so keep what you use.")
+	for tool: Array in CARE.TOOLS:
+		_toggle_row(entry, str(tool[2]), "", CARE.tool_on(str(tool[0])),
+			_on_tool.bind(str(tool[0]), entry), "tool_" + str(tool[0]))
+
 	_heading(list, "Extras", font)
 	_toggle_row(entry, "Hoof licking", "Lick her lifted hooves clean until they sparkle: get your face right up to the hoof and hold click (desktop), or lick it slowly (VR). Grown mares only. Off by default.", CARE.lick_enabled,
 		_on_lick.bind(entry), "lick")
@@ -259,6 +265,7 @@ func _build(entry: Dictionary) -> void:
 	reset.pressed.connect(func() -> void:
 		CARE.reset_settings(mod_id)
 		_apply()
+		_reconcile_kit()
 		_build(entry))
 	list.add_child(reset)
 	_sync(entry)
@@ -316,6 +323,18 @@ func _on_dirt(on: bool, entry: Dictionary) -> void:
 func _on_spa_care(on: bool, entry: Dictionary) -> void:
 	CARE.spa_care = on
 	_changed(entry)
+
+
+func _on_tool(on: bool, key: String, entry: Dictionary) -> void:
+	CARE.set_tool(key, on)
+	_changed(entry)
+	_reconcile_kit()
+
+
+## Gives or takes back the briefcase tools to match the switches.
+func _reconcile_kit() -> void:
+	var kit := get_parent().get_node_or_null("Kit") if get_parent() != null else null
+	if kit != null and kit.has_method("reconcile"): kit.call("reconcile")
 
 
 func _on_pay(on: bool, entry: Dictionary) -> void:
@@ -411,6 +430,9 @@ func _sync(entry: Dictionary) -> void:
 		var key := "days_" + str(job[0])
 		if refs.has(key): (refs[key] as HSlider).editable = CARE.dirt_enabled
 	if refs.has("dirt"): (refs.dirt as CheckButton).set_pressed_no_signal(CARE.dirt_enabled)
+	for tool: Array in CARE.TOOLS:
+		var tool_ref := "tool_" + str(tool[0])
+		if refs.has(tool_ref): (refs[tool_ref] as CheckButton).set_pressed_no_signal(CARE.tool_on(str(tool[0])))
 	if refs.has("lick"): (refs.lick as CheckButton).set_pressed_no_signal(CARE.lick_enabled)
 	if refs.has("spa"):
 		(refs.spa as CheckButton).disabled = not CARE.dirt_enabled
