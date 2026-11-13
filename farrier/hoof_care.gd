@@ -28,6 +28,8 @@ extends RefCounted
 ##   hoof_pick=true  nippers=true  rasp=true  hammer=true  hoof_oil=true
 ##   shoe_steel=true  shoe_silver=true  shoe_gold=true  shoe_rainbow=true
 ##   mane_brush=true  coat_brush=true
+## A tool with no line here is on, except the two brushes while the game's bundled Grooming mod is
+## running (it gives its own pair): those start off. Only switches the player has changed are saved.
 ##   [brushing]
 ##   sparkle=true     a freshly brushed mane or tail sparkles
 ##   sparkle_minutes=10.0   for how long
@@ -58,8 +60,12 @@ const TOOLS := [
 	["coat_brush", "food:care-coat-brush", "Coat Brush"],
 ]
 
+## Brushes the bundled Grooming mod also gives; off by default while it runs, to keep the briefcase tidy.
+const GROOMING_TOOLS := ["mane_brush", "coat_brush"]
+
 static var _days := {}
-## Tool key -> whether it is kept in the briefcase (every tool by default).
+## Tool key -> whether it is kept in the briefcase, for the switches the player has set. A tool not
+## listed follows default_on().
 static var _tools := {}
 static var dirt_enabled := true
 static var spa_care := true
@@ -95,8 +101,10 @@ static func load_settings(mod_id: String) -> void:
 	sparkle_minutes = clampf(float(config.get_value("brushing", "sparkle_minutes", DEFAULT_SPARKLE_MINUTES)), 1.0, 60.0)
 	hoof_sparkle_on = bool(config.get_value("brushing", "hoof_sparkle", true))
 	hoof_sparkle_minutes = clampf(float(config.get_value("brushing", "hoof_sparkle_minutes", DEFAULT_HOOF_SPARKLE_MINUTES)), 1.0, 60.0)
+	_tools.clear()
 	for tool: Array in TOOLS:
-		_tools[tool[0]] = bool(config.get_value("tools", str(tool[0]), true))
+		if config.has_section_key("tools", str(tool[0])):
+			_tools[tool[0]] = bool(config.get_value("tools", str(tool[0])))
 	if not loaded:
 		save_settings(mod_id)
 	print("[mare_care] settings: hooves get dirty %s, upkeep days %s, pay %s, hoof model %s, frog %s, sparkle %s (%s min)  (%s)" % [
@@ -119,7 +127,7 @@ static func save_settings(mod_id: String) -> void:
 	config.set_value("brushing", "hoof_sparkle", hoof_sparkle_on)
 	config.set_value("brushing", "hoof_sparkle_minutes", hoof_sparkle_minutes)
 	for tool: Array in TOOLS:
-		config.set_value("tools", str(tool[0]), tool_on(str(tool[0])))
+		if _tools.has(tool[0]): config.set_value("tools", str(tool[0]), bool(_tools[tool[0]]))
 	config.save(_path(mod_id))
 
 
@@ -136,13 +144,17 @@ static func reset_settings(mod_id: String) -> void:
 	sparkle_minutes = DEFAULT_SPARKLE_MINUTES
 	hoof_sparkle_on = true
 	hoof_sparkle_minutes = DEFAULT_HOOF_SPARKLE_MINUTES
-	for tool: Array in TOOLS:
-		_tools[tool[0]] = true
+	_tools.clear()
 	save_settings(mod_id)
 
 
 static func tool_on(key: String) -> bool:
-	return bool(_tools.get(key, true))
+	return bool(_tools.get(key, default_on(key)))
+
+
+## Every tool starts on, except the brushes while the bundled Grooming mod runs.
+static func default_on(key: String) -> bool:
+	return not (key in GROOMING_TOOLS and Mods.is_active("grooming"))
 
 
 static func set_tool(key: String, on: bool) -> void:

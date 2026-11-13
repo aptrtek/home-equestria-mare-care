@@ -110,7 +110,9 @@ away and are saved for next time.
 - **Tools in your briefcase:** one switch for each tool the mod gives you (hoof pick, nippers,
   rasp, hammer, hoof oil, the four horseshoes, the two brushes). Switch one off and it leaves your
   briefcase; a tool in your hand goes as soon as you put it away. Switch it back on and it returns
-  if there is room. Tools you dropped in the world stay where they are.
+  if there is room. Tools you dropped in the world stay where they are. While the game's bundled
+  Grooming mod is on (game 0.3.1 and later), Mare Care's two brushes start switched off, since
+  Grooming gives you its own pair; switch them on for Mare Care's brushing and its sparkle.
 - **The spa cares for hooves:** see below.
 - **How long until care is due again:** one slider each for dirt building up, a trim wearing
   off, shoes working loose and the oil wearing off, from every day to every 30 days, or never
