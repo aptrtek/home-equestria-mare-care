@@ -39,6 +39,9 @@ extends RefCounted
 const SETTINGS := "settings.cfg"
 const JOBS := ["pick", "trim", "shoe", "oil"]
 const DEFAULT_DAYS := 7.0
+## A shod hoof takes this many times as long to need picking out: the shoe keeps the sole up off the
+## ground, so less packs into it. The upkeep setting is the time for a bare hoof.
+const SHOD_DIRT_FACTOR := 2.0
 const STAMP := {"pick": "picked", "trim": "trimmed", "shoe": "shod", "oil": "oiled"}
 const MODELS := ["original", "heart", "cushion", "arch", "rings", "mitty", "mitty_v2"]
 const DEFAULT_MODEL := "original"
@@ -196,12 +199,14 @@ static func hoof(mod_id: String, pony_id: String, leg: String) -> Dictionary:
 
 ## True when `job` is due on this hoof: never done, or done longer ago than its upkeep.
 ## "shoe" is due only for a shod hoof (its shoe has worked loose); a bare hoof is never due.
+## "pick" comes due SHOD_DIRT_FACTOR times more slowly on a shod hoof.
 static func due(record: Dictionary, job: String) -> bool:
 	if not dirt_enabled: return false
 	var stamp: String = STAMP[job]
 	if job == "shoe" and str(record.get("shoe", "")).is_empty(): return false
 	if not record.has(stamp): return true
 	var every := days(job)
+	if job == "pick" and not str(record.get("shoe", "")).is_empty(): every *= SHOD_DIRT_FACTOR
 	return every > 0.0 and now() - float(record[stamp]) >= every
 
 
