@@ -119,6 +119,13 @@ static func clear_caches() -> void:
 		for name in ["cache", "shadow_cache"]:
 			var table: Variant = far.get(name)
 			if table is Dictionary: (table as Dictionary).clear()
+	# From game 0.3.1 the game keeps shared body mesh data for the whole session (mesh_source_cache.gd)
+	# and assumes nothing edits it in place. The hooves do, so it is forgotten here too (an older game
+	# has no such file).
+	var sources_path := "res://world/characters/crowd/mesh_source_cache.gd"
+	if ResourceLoader.exists(sources_path):
+		var sources: Script = load(sources_path)
+		if sources != null: sources.call("clear")
 
 
 ## Has every pony in the world rebuild her merged meshes from the (new) body mesh. Runs over several
