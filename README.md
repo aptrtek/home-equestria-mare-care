@@ -3,7 +3,7 @@
 A mod for [Home: Equestria](https://github.com/homedevanon/home-equestria) that adds new ways to
 look after your mare.
 
-Built for game version `0.3.0-maredev`. Works on desktop and in VR.
+Built for game version `0.3.1-maredev`. Works on desktop and in VR.
 
 > **Work in progress.** Farrier work and brushing are in. Tooth brushing and bathing are next.
 
