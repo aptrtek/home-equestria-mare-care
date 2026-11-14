@@ -176,8 +176,10 @@ static func lower(pony: Node3D) -> void:
 
 
 ## While she has a hoof up for us, nothing else walks her off (the navigator's own reservation,
-## as the courier uses).
+## as the courier uses). Not for a spa client: the spa's lease already holds her, and a reservation
+## would take her navigator from the spa and end her visit.
 static func hold_still(pony: Node3D, on: bool) -> void:
+	if on and pony.has_meta("spa_client"): return
 	var nav := pony.get_node_or_null("Navigator")
 	if nav == null: return
 	if on and nav.has_method("reserve"): nav.reserve(RESERVE, [RESERVE])
