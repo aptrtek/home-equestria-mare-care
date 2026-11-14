@@ -53,6 +53,8 @@ const BENCH_TOOLS := [
 	["food:care-spa-hoof-pick", -3.06], ["food:care-spa-nippers", -3.17], ["food:care-spa-rasp", -3.29],
 	["food:care-spa-hammer", -3.41], ["food:care-spa-hoof-oil", -3.53], ["food:care-spa-shoe-steel", -3.64],
 ]
+## Left off the bench while shoeing at the spa is switched off.
+const SHOE_TOOLS := ["food:care-spa-hammer", "food:care-spa-shoe-steel"]
 const TOOLS_HOME_SECONDS := 1.0
 ## Away from the spa further than this, the bench is restocked only once the player comes back.
 const RESTOCK_REACH := 30.0
@@ -70,6 +72,9 @@ var _spa: Node
 var _owner_id := ""
 ## Clients this has taken over: id -> actor, to settle up with the ones who leave half shod.
 var _taken := {}
+## How many bare hooves each taken-over client came with: she is held for an even set, or hurt by
+## leaving lopsided, only when the shoeing done here changed that.
+var _bare_start := {}
 var _prop: Node3D
 var _check := 0.0
 var _tools_clock := 0.0
@@ -147,7 +152,8 @@ func _wanted(pony_id: String, with_trim: bool) -> Array:
 	for job: String in ["pick", "trim", "shoe", "oil"]:
 		if job == "trim" and not with_trim: continue
 		for leg: String in HOOVES.LEGS:
-			if CARE.due(hooves.get(leg, {}), job):
+			var record: Dictionary = hooves.get(leg, {})
+			if CARE.due(record, job) and CARE.spa_job(record, job):
 				out.append(job); break
 	return out
 
@@ -189,6 +195,7 @@ func _take(visit: Dictionary) -> void:
 		_skip(visit); return
 	visit.farrier_jobs = jobs
 	_taken[id] = visit.actor
+	_bare_start[id] = _bare_count(id)
 	if bool(visit.get("sat", false)):
 		visit.actor.request_posture("stand"); visit.sat = false
 	visit.patience = float(_spa._clock) + PATIENCE
@@ -260,7 +267,16 @@ func _tick_stand(visit: Dictionary, clock: float) -> void:
 		_spa.call("_face", visit, _facing())
 
 
-## Everything she came for is done on all four hooves, and she isn't shod on only some.
+func _bare_count(pony_id: String) -> int:
+	var hooves := CARE.hooves(mod_id, pony_id)
+	var bare := 0
+	for leg: String in HOOVES.LEGS:
+		if str((hooves.get(leg, {}) as Dictionary).get("shoe", "")).is_empty(): bare += 1
+	return bare
+
+
+## Everything she came for is done on all four hooves, and she isn't left shod on only some (unless
+## she came in that way and nothing was shod here).
 func _finished(visit: Dictionary) -> bool:
 	var hooves := CARE.hooves(mod_id, str(visit.id))
 	var bare := 0
@@ -268,14 +284,15 @@ func _finished(visit: Dictionary) -> bool:
 		var record: Dictionary = hooves.get(leg, {})
 		if str(record.get("shoe", "")).is_empty(): bare += 1
 		for job: String in visit.get("farrier_jobs", []):
-			if CARE.due(record, job): return false
-	return bare == 0 or bare == 4
+			if CARE.due(record, job) and CARE.spa_job(record, job): return false
+	return bare == 0 or bare == 4 or bare == int(_bare_start.get(str(visit.id), bare))
 
 
 func _finish(visit: Dictionary) -> void:
 	var id := str(visit.id)
 	print("[mare_care] %s is done at the farrier station" % id)
 	_taken.erase(id)
+	_bare_start.erase(id)
 	var farrier := _farrier()
 	if farrier != null and farrier.has_method("_stop_waiting"): farrier.call("_stop_waiting", visit.actor)
 	_spa.call("_relax", visit, 0.8)
@@ -305,7 +322,9 @@ func _settle_departures() -> void:
 		if not session.is_empty() and session.get("pony") == pony: farrier.call("_end_session")
 		farrier.call("_stop_waiting", pony)
 		var bare: Array = farrier.call("_bare_hooves", pony)
-		if not bare.is_empty() and bare.size() < 4: farrier.call("_left_uneven", pony)
+		var start := int(_bare_start.get(id, bare.size()))
+		_bare_start.erase(id)
+		if not bare.is_empty() and bare.size() < 4 and bare.size() != start: farrier.call("_left_uneven", pony)
 
 
 # ---------------------------------------------------------------- the station itself
@@ -389,12 +408,14 @@ func _keep_tools_home(delta: float) -> void:
 	if store == null or not is_instance_valid(camera) or not held is Dictionary or not loose is Dictionary: return
 	if not inventory.has_method("spawn_owned_drop") or not store.has_method("discard"): return
 	if not CARE.spa_farrier:
-		_put_tools_away(inventory, store)
+		_put_tools_away(inventory, store, [])
 		return
+	if not CARE.spa_shoes: _put_tools_away(inventory, store, SHOE_TOOLS)
 	var player_out: bool = not bool(venue.call("is_inside", camera.global_position))
 	var far := camera.global_position.distance_squared_to(venue.global_position) > RESTOCK_REACH * RESTOCK_REACH
 	for entry: Array in BENCH_TOOLS:
 		var id := str(entry[0])
+		if not CARE.spa_shoes and id in SHOE_TOOLS: continue
 		var rest := _tool_rest(float(entry[1]))
 		var home: RigidBody3D = null
 		for token: Variant in (loose as Dictionary).keys():
@@ -462,13 +483,15 @@ func _take_out_of_hand(inventory: Node, side: String, store: Variant) -> void:
 	if inventory.has_method("_refresh_holding"): inventory.call("_refresh_holding")
 
 
-## The station switched off: its tools leave the world and the briefcase (one in a hand goes once it
-## is put away, or the player leaves the spa).
-func _put_tools_away(inventory: Node, store: Variant) -> void:
+## The station (or its shoeing) switched off: its tools (`only` these ids, or all of them when
+## empty) leave the world and the briefcase. One in a hand goes once it is put away, or the player
+## leaves the spa.
+func _put_tools_away(inventory: Node, store: Variant, only: Array) -> void:
 	var held: Dictionary = inventory.get("held")
 	var loose: Dictionary = inventory.get("loose")
 	for entry: Array in BENCH_TOOLS:
 		var id := str(entry[0])
+		if not only.is_empty() and not id in only: continue
 		for token: Variant in loose.keys():
 			var item: Variant = loose[token]
 			if not is_instance_valid(item) or item in held.values() or str((item as Node).get_meta("item_id", "")) != id: continue

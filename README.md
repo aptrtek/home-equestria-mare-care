@@ -153,6 +153,9 @@ switches, so it works even with all of yours switched off.
 - **Shoes are up to you.** She doesn't come for new shoes, but you can fit them while she's there.
   Shod on only some hooves, she waits for the rest; if she runs out of patience and leaves
   lopsided, she's hurt, just as she would be in town.
+- **Shoeing at the spa** can be switched off in the settings. Then the bench has no hammer or shoes,
+  shoes can't be fitted, reset or pulled at the station, and a shod client only has her hooves
+  picked out and oiled there (trimming a shod hoof means taking the shoe off).
 - **Spa care is not romance:** no hoof massages or licking at the station, and her thanks bring
   friendship, never romance.
 
@@ -177,6 +180,7 @@ applies the next time the game starts):
 hooves_get_dirty=true
 spa_care=true
 spa_farrier=true
+spa_shoes=true
 pick_days=7.0
 trim_days=7.0
 shoe_days=7.0

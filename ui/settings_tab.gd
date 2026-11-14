@@ -230,6 +230,8 @@ func _build(entry: Dictionary) -> void:
 		_on_spa_care.bind(entry), "spa")
 	_toggle_row(entry, "Farrier station at the spa", "Spa clients whose hooves need picking, oil or a shoe reset finish their visit at a farrier station behind the lobby, where you do it with the station's own tools (or yours). Every client pays for it as a spa add-on.", CARE.spa_farrier,
 		_on_spa_farrier.bind(entry), "spa_farrier")
+	_toggle_row(entry, "Shoeing at the spa", "Horseshoes at the spa's farrier station. Off: its bench has no hammer or shoes, shoes can't be fitted, reset or pulled there, and shod clients only have their hooves picked out and oiled.", CARE.spa_shoes,
+		_on_spa_shoes.bind(entry), "spa_shoes")
 	for job: Array in UPKEEP:
 		_slider_row(entry, str(job[1]), str(job[2]), 0.0, 30.0, 1.0, CARE.days(str(job[0])),
 			_describe_days, _on_days.bind(str(job[0]), entry), "days_" + str(job[0]))
@@ -329,6 +331,11 @@ func _on_spa_care(on: bool, entry: Dictionary) -> void:
 
 func _on_spa_farrier(on: bool, entry: Dictionary) -> void:
 	CARE.spa_farrier = on
+	_changed(entry)
+
+
+func _on_spa_shoes(on: bool, entry: Dictionary) -> void:
+	CARE.spa_shoes = on
 	_changed(entry)
 
 
@@ -447,6 +454,9 @@ func _sync(entry: Dictionary) -> void:
 	if refs.has("spa_farrier"):
 		(refs.spa_farrier as CheckButton).disabled = not CARE.dirt_enabled
 		(refs.spa_farrier as CheckButton).set_pressed_no_signal(CARE.spa_farrier)
+	if refs.has("spa_shoes"):
+		(refs.spa_shoes as CheckButton).disabled = not CARE.dirt_enabled or not CARE.spa_farrier
+		(refs.spa_shoes as CheckButton).set_pressed_no_signal(CARE.spa_shoes)
 	if refs.has("frog"):
 		var frog: CheckButton = refs.frog
 		frog.disabled = not CARE.underside()
