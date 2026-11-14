@@ -115,7 +115,7 @@ away and are saved for next time.
   Grooming mod is on (game 0.3.1 and later), Mare Care's two brushes start switched off, since
   Grooming gives you its own pair. A mane or tail brushed with Grooming's brush sparkles just like
   one brushed with Mare Care's (when the sparkle setting is on).
-- **The spa cares for hooves:** see below.
+- **The spa cares for hooves** and **Farrier station at the spa:** see below.
 - **How long until care is due again:** one slider each for dirt building up, a trim wearing
   off, shoes working loose and the oil wearing off, from every day to every 30 days, or never
   again (once done, it stays done). These are in-game days. The default is 7. A shod hoof takes
@@ -132,16 +132,29 @@ a shoe that is due sits a little crooked, with its nail heads sticking out.
 
 ### The spa
 
-Hooves don't depend on you alone. Aloe and Lotus's spa looks after them too:
+Aloe and Lotus's spa has a **farrier station**: a mat and a tool caddy behind the lobby's
+partition, beside the wing cushion. A client whose hooves need picking, oil or a shoe reset ends
+her visit there, after the footbath, the massage table and (for a pegasus) the wing cushion. She
+waits on the lobby bench while another client has the station.
 
-- when a client's front hooves are filed at the footbath, those hooves are cleaned out and
-  trimmed;
-- when her back hooves are done on the massage table, so are those, and they count as massaged;
-- when a mare finishes a whole visit, all four hooves are cleaned out, trimmed and oiled, whoever
-  held the file.
+At the station she's like any mare in town: aim a tool at a leg and she lifts that hoof, then pick
+it out, trim and rasp it, shoe it and oil it with your own tools. When everything she came for is
+done on all four hooves she goes home. The leg hint shows what she needs.
 
-The upkeep clocks start again exactly as if you had done it. Switch it off in the settings if you
-like.
+- **Every client pays,** as a spa add-on at Mare Care's prices (the coin pops up like the spa's
+  own pay), unless you've switched pay off. A set of shoes is paid once all four are on.
+- **Shoes are up to you.** She doesn't come for new shoes, but you can fit them while she's there.
+  Shod on only some hooves, she waits for the rest; if she runs out of patience and leaves
+  lopsided, she's hurt, just as she would be in town.
+- **Spa care is not romance:** no hoof massages or licking at the station, and her thanks bring
+  friendship, never romance.
+- Only jobs whose tools you have switched on bring her to the station.
+
+The spa's own work counts too: filing at the footbath and on the table trims those hooves. With
+the farrier station switched off, the spa does the rest itself instead: filed hooves are also
+cleaned out, back hooves done on the table count as massaged, and a mare who finishes a whole visit
+has all four hooves cleaned out, trimmed and oiled, whoever held the file. **The spa cares for
+hooves** switches the spa's own hoof care off altogether.
 
 ### The settings file
 
@@ -157,6 +170,7 @@ applies the next time the game starts):
 [upkeep]
 hooves_get_dirty=true
 spa_care=true
+spa_farrier=true
 pick_days=7.0
 trim_days=7.0
 shoe_days=7.0
@@ -287,6 +301,6 @@ godot --xr-mode off --path <project> -- --mod-src mare_care
   `godot --xr-mode off --path <project> --script res://mods/mare_care/tools/hoof_viewer.gd`.
 - `farrier/`: the farrier. `farrier.gd` runs the jobs, `hooves.gd` finds her soles and lifts
   her hooves, `shoes.gd` keeps the shoes on, `hoof_care.gd` holds what was done and when, plus
-  the settings, `spa_care.gd` listens to the spa, and `models.gd` builds the tools and shoes. To regenerate the tool models:
+  the settings, `spa_care.gd` listens to the spa, `spa_station.gd` runs the farrier station there, and `models.gd` builds the tools and shoes. To regenerate the tool models:
   `godot --headless --xr-mode off --path <project> --script res://mods/mare_care/farrier/tools/make_farrier_models.gd`.
 - `merge/world/food/definitions.json`: the brushes and farrier tools as non-edible briefcase items.

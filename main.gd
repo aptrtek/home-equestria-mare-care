@@ -18,6 +18,7 @@ const CARE := preload("res://mods/mare_care/farrier/hoof_care.gd")
 const SETTINGS_TAB := preload("res://mods/mare_care/ui/settings_tab.gd")
 const KIT := preload("res://mods/mare_care/farrier/kit.gd")
 const SPA_CARE := preload("res://mods/mare_care/farrier/spa_care.gd")
+const SPA_STATION := preload("res://mods/mare_care/farrier/spa_station.gd")
 const BODY_HOOVES := preload("res://mods/mare_care/farrier/body_hooves.gd")
 
 
@@ -31,6 +32,7 @@ func _ready() -> void:
 	_add("Shoes", SHOES)
 	_add("Farrier", FARRIER)
 	_add("SpaCare", SPA_CARE)
+	_add("SpaStation", SPA_STATION)
 	_add("SettingsTab", SETTINGS_TAB)
 
 

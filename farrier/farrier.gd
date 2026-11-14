@@ -237,9 +237,10 @@ func _mouth_near(camera: Node3D, reach: float) -> bool:
 	return PLAYER_MOUTH.point(camera).distance_to(sole) <= reach * HOOVES.scale_of(_session.pony)
 
 
-## Hoof massages are for grown mares.
+## Hoof massages are for grown mares, and not at the spa's farrier station (spa care is not
+## romance, and the spa has its own massage table).
 func _can_massage(pony: Variant) -> bool:
-	if not is_instance_valid(pony): return false
+	if not is_instance_valid(pony) or (pony as Node).has_meta("spa_client"): return false
 	var identity: Variant = pony.get("identity")
 	return identity == null or not bool(identity.get("filly"))
 
@@ -330,7 +331,9 @@ func interaction_hint() -> Dictionary:
 			text += "  (she'd like this one shod too, to match)"
 		elif not needs.is_empty():
 			text += "  (needs: %s)" % ", ".join(needs)
-			if _pays(hit.pony): text += " · she pays"
+			if hit.pony.has_meta("spa_client"):
+				if CARE.pay_enabled: text += " · spa add-on"
+			elif _pays(hit.pony): text += " · she pays"
 	else:
 		text = _hoof_hint(hit)
 	return {"target": hit.pony, "text": text, "point": hit.point, "outline": null}
@@ -735,6 +738,8 @@ func _keep_waiting() -> void:
 		if not is_instance_valid(pony):
 			_waiting.erase(pony); continue
 		if not _session.is_empty() and _session.pony == pony: continue
+		# At the spa's farrier station the station decides when she's done waiting.
+		if pony.has_meta("spa_client"): continue
 		var bare := _bare_hooves(pony)
 		if bare.is_empty() or bare.size() == 4:
 			_stop_waiting(pony); continue
@@ -796,6 +801,9 @@ func _stage(id: String) -> String:
 ## She pays for the jobs done on the hoof she just put down, from her own purse. Short of bits,
 ## she says so and that's that.
 func _collect(pony: Node3D, leg: String, amount: int) -> void:
+	# At the spa's farrier station every client pays, as a spa add-on.
+	var station := _station()
+	if station != null and bool(station.call("pay", pony, amount)): return
 	if not _pays(pony): return
 	var game := _game()
 	if game == null: return
@@ -916,7 +924,7 @@ func _grateful(pony: Node3D, friendship: int, thought: String, memory: String, m
 	var tags := {"friendship": friendship, "mood": mood}
 	if not thought.is_empty():
 		tags["thought"] = thought
-		if not _pays(pony) and bonds != null and bonds.has_method("eligible_for_romance") and bonds.eligible_for_romance(id):
+		if not _pays(pony) and not pony.has_meta("spa_client") and bonds != null and bonds.has_method("eligible_for_romance") and bonds.eligible_for_romance(id):
 			var stage := str(bonds.record_for(id).get("stage", "acquaintance"))
 			if int(bonds.interest(id)) >= 25 or stage in ["dating", "engaged", "married"]: tags["romance"] = 1
 	var impressions: Variant = context.get("impressions")
@@ -971,7 +979,7 @@ func _reward(pony: Node3D, job: String, style: String) -> void:
 		tags["friendship"] = 2
 		tags["thought"] = THOUGHTS[job]
 		# Romance only for care given freely: a mare who pays had a service done, not a gesture.
-		if not _pays(pony) and bonds != null and bonds.has_method("eligible_for_romance") and bonds.eligible_for_romance(id):
+		if not _pays(pony) and not pony.has_meta("spa_client") and bonds != null and bonds.has_method("eligible_for_romance") and bonds.eligible_for_romance(id):
 			var stage := str(bonds.record_for(id).get("stage", "acquaintance"))
 			if int(bonds.interest(id)) >= 25 or stage in ["dating", "engaged", "married"]:
 				tags["romance"] = 1
@@ -1160,6 +1168,10 @@ func _animate_desktop_tool(delta: float) -> void:
 
 # ---------------------------------------------------------------- helpers
 
+func _station() -> Node:
+	return get_parent().get_node_or_null("SpaStation") if get_parent() != null else null
+
+
 func _shoes() -> Node:
 	return get_parent().get_node("Shoes")
 
@@ -1189,7 +1201,11 @@ func _ponies(game: Node) -> Array:
 
 ## Like brushing: not while she's cross with Anon or asked for space, or asleep, or at the spa.
 func _willing(pony: Node3D) -> bool:
-	if bool(pony.get("sleeping")) or pony.has_meta("spa_client"): return false
+	if bool(pony.get("sleeping")): return false
+	# A spa client only at the spa's farrier station, where she is there for it.
+	if pony.has_meta("spa_client"):
+		var station := _station()
+		return station != null and bool(station.call("serving", pony))
 	var identity: Variant = pony.get("identity")
 	if identity != null and bool(identity.get("filly")): return true
 	var game := _game()
