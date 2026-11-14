@@ -132,23 +132,32 @@ a shoe that is due sits a little crooked, with its nail heads sticking out.
 
 ### The spa
 
-Aloe and Lotus's spa has a **farrier station**: a mat and a tool caddy behind the lobby's
+Aloe and Lotus's spa has a **farrier station**: a mat and a tool bench behind the lobby's
 partition, beside the wing cushion. A client whose hooves need picking, oil or a shoe reset ends
 her visit there, after the footbath, the massage table and (for a pegasus) the wing cushion. She
 waits on the lobby bench while another client has the station.
 
 At the station she's like any mare in town: aim a tool at a leg and she lifts that hoof, then pick
-it out, trim and rasp it, shoe it and oil it with your own tools. When everything she came for is
-done on all four hooves she goes home. The leg hint shows what she needs.
+it out, trim and rasp it, shoe it and oil it. When everything she came for is done on all four
+hooves she goes home. The leg hint shows what she needs.
+
+The station has its own tools, on the bench beside the mat: a hoof pick, nippers, a rasp, a
+hammer, hoof oil and a set of steel horseshoes. Pick them up like anything else. They belong to the
+spa, like its hoof file: take one out of the spa (in your hand or your briefcase) and it goes back
+on the bench, and a missing one is put back. Your own tools work there too, so bring your silver,
+gold or rainbow shoes if you'd like to fit those. The station's tools don't count against the Tools
+switches, so it works even with all of yours switched off.
 
 - **Every client pays,** as a spa add-on at Mare Care's prices (the coin pops up like the spa's
   own pay), unless you've switched pay off. A set of shoes is paid once all four are on.
 - **Shoes are up to you.** She doesn't come for new shoes, but you can fit them while she's there.
   Shod on only some hooves, she waits for the rest; if she runs out of patience and leaves
   lopsided, she's hurt, just as she would be in town.
+- **Shoeing at the spa** can be switched off in the settings. Then the bench has no hammer or shoes,
+  shoes can't be fitted, reset or pulled at the station, and a shod client only has her hooves
+  picked out and oiled there (trimming a shod hoof means taking the shoe off).
 - **Spa care is not romance:** no hoof massages or licking at the station, and her thanks bring
   friendship, never romance.
-- Only jobs whose tools you have switched on bring her to the station.
 
 The spa's own work counts too: filing at the footbath and on the table trims those hooves. With
 the farrier station switched off, the spa does the rest itself instead: filed hooves are also
@@ -171,6 +180,7 @@ applies the next time the game starts):
 hooves_get_dirty=true
 spa_care=true
 spa_farrier=true
+spa_shoes=true
 pick_days=7.0
 trim_days=7.0
 shoe_days=7.0

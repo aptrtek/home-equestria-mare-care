@@ -13,6 +13,8 @@ extends RefCounted
 ##   spa_care=true    Aloe and Lotus's spa also cleans a client's hooves (farrier/spa_care.gd)
 ##   spa_farrier=true clients whose hooves need care finish their spa visit at a farrier station
 ##                    where the player does it, paid as a spa add-on (farrier/spa_station.gd)
+##   spa_shoes=true   horseshoes at that station; false: no shoes fitted, reset or pulled there,
+##                    and shod clients only have their hooves picked out and oiled
 ##   pick_days=7.0    how long until a cleaned hoof is dirty again
 ##   trim_days=7.0    trim and rasp again
 ##   shoe_days=7.0    reset the shoes (re-nail them)
@@ -75,6 +77,7 @@ static var _tools := {}
 static var dirt_enabled := true
 static var spa_care := true
 static var spa_farrier := true
+static var spa_shoes := true
 static var pay_enabled := true
 static var show_frog := true
 static var hoof_model := DEFAULT_MODEL
@@ -99,6 +102,7 @@ static func load_settings(mod_id: String) -> void:
 	dirt_enabled = bool(config.get_value("upkeep", "hooves_get_dirty", true))
 	spa_care = bool(config.get_value("upkeep", "spa_care", true))
 	spa_farrier = bool(config.get_value("upkeep", "spa_farrier", true))
+	spa_shoes = bool(config.get_value("upkeep", "spa_shoes", true))
 	pay_enabled = bool(config.get_value("pay", "enabled", true))
 	show_frog = bool(config.get_value("hooves", "show_frog", true))
 	var model := str(config.get_value("hooves", "model", DEFAULT_MODEL))
@@ -126,6 +130,7 @@ static func save_settings(mod_id: String) -> void:
 	config.set_value("upkeep", "hooves_get_dirty", dirt_enabled)
 	config.set_value("upkeep", "spa_care", spa_care)
 	config.set_value("upkeep", "spa_farrier", spa_farrier)
+	config.set_value("upkeep", "spa_shoes", spa_shoes)
 	config.set_value("pay", "enabled", pay_enabled)
 	config.set_value("hooves", "model", hoof_model)
 	config.set_value("hooves", "show_frog", show_frog)
@@ -145,6 +150,7 @@ static func reset_settings(mod_id: String) -> void:
 	dirt_enabled = true
 	spa_care = true
 	spa_farrier = true
+	spa_shoes = true
 	pay_enabled = true
 	show_frog = true
 	hoof_model = DEFAULT_MODEL
@@ -182,6 +188,14 @@ static func days(job: String) -> float:
 ## Original and Mitty's models have none: Mitty's hooves are part of the body mesh itself.
 static func underside() -> bool:
 	return hoof_model in ["heart", "cushion", "arch", "rings"]
+
+
+## True when this hoof's job can be done at the spa's farrier station. With shoeing at the spa off,
+## shoe resets can't, and neither can a trim on a shod hoof (that means pulling the shoe).
+static func spa_job(record: Dictionary, job: String) -> bool:
+	if spa_shoes: return true
+	if job == "shoe": return false
+	return not (job == "trim" and not str(record.get("shoe", "")).is_empty())
 
 
 static func now() -> float:

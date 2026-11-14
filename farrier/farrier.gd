@@ -36,6 +36,9 @@ const TOOLS := {
 	"food:care-hammer": "hammer", "food:care-hoof-oil": "hoof_oil",
 	"food:care-shoe-steel": "shoe_steel", "food:care-shoe-silver": "shoe_silver",
 	"food:care-shoe-gold": "shoe_gold", "food:care-shoe-rainbow": "shoe_rainbow",
+	# The spa farrier station's own set, kept in its toolbox (spa_station.gd); they work the same.
+	"food:care-spa-hoof-pick": "hoof_pick", "food:care-spa-nippers": "nippers", "food:care-spa-rasp": "rasp",
+	"food:care-spa-hammer": "hammer", "food:care-spa-hoof-oil": "hoof_oil", "food:care-spa-shoe-steel": "shoe_steel",
 }
 ## A hoof massage: seconds of slow rubbing on a lifted hoof, empty-handed. Grown mares only.
 const MASSAGE_SECONDS := 10.0
@@ -326,8 +329,11 @@ func interaction_hint() -> Dictionary:
 		var record := _record(hit.pony, hit.leg)
 		text = "Click · Ask her to lift her %s hoof" % HOOVES.NAMES[hit.leg]
 		var needs := _needs(record)
+		if _no_spa_shoes(hit.pony):
+			needs.erase("a shoe reset")
+			if _shod(record): needs.erase("a trim")
 		var bare := _bare_hooves(hit.pony)
-		if not bare.is_empty() and bare.size() < 4 and not _shod(record):
+		if not bare.is_empty() and bare.size() < 4 and not _shod(record) and not _no_spa_shoes(hit.pony):
 			text += "  (she'd like this one shod too, to match)"
 		elif not needs.is_empty():
 			text += "  (needs: %s)" % ", ".join(needs)
@@ -344,6 +350,9 @@ func _hoof_hint(hit: Dictionary) -> String:
 	var record: Dictionary = _session.record
 	var fitting: Dictionary = _session.fitting
 	var kind: String = hit.kind
+	if _no_spa_shoes(_session.pony):
+		if kind == "hammer" or kind.begins_with("shoe_"): return "No shoeing at the spa (Settings › Mare Care)"
+		if kind in ["nippers", "rasp"] and _shod(record): return "Shod: no trim at the spa (Settings › Mare Care)"
 	match kind:
 		"hoof_pick":
 			if (_session.pieces as Array).is_empty(): return "Hoof pick: this hoof is clean"
@@ -426,6 +435,8 @@ func _work(kind: String, hit: Dictionary, dt: float, held: bool) -> void:
 	var record: Dictionary = _session.record
 	var fitting: Dictionary = _session.fitting
 	_session.idle = 0.0
+	# Shoeing at the spa switched off: no fitting, nailing or pulling on a spa client.
+	if _no_spa_shoes(pony) and (kind == "hammer" or kind.begins_with("shoe_") or (kind == "nippers" and _shod(record))): return
 	match kind:
 		"hoof_pick":
 			var piece: Variant = hit.get("piece", null)
@@ -1167,6 +1178,11 @@ func _animate_desktop_tool(delta: float) -> void:
 
 
 # ---------------------------------------------------------------- helpers
+
+## A spa client while shoeing at the spa is switched off.
+func _no_spa_shoes(pony: Variant) -> bool:
+	return not CARE.spa_shoes and is_instance_valid(pony) and (pony as Node).has_meta("spa_client")
+
 
 func _station() -> Node:
 	return get_parent().get_node_or_null("SpaStation") if get_parent() != null else null

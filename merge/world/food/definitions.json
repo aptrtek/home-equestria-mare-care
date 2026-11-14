@@ -185,5 +185,107 @@
 		],
 		"price_bits": 0,
 		"model": "../../../mods/mare_care/farrier/models/shoe_rainbow"
+	},
+	"care-spa-hoof-pick": {
+		"name": "Spa Hoof Pick",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "A farrier's hoof pick. Ask a pony to lift a hoof by aiming at her leg, then pick the stones and dirt out of it. It belongs to the farrier station at Aloe and Lotus's spa and stays there. (Mare Care)",
+		"mass": 0.08,
+		"size_m": [
+			0.03,
+			0.04,
+			0.16
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/hoof_pick"
+	},
+	"care-spa-nippers": {
+		"name": "Spa Hoof Nippers",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "Trim an overgrown hoof wall on a lifted hoof. On a shod hoof they pull the shoe. It belongs to the farrier station at Aloe and Lotus's spa and stays there. (Mare Care)",
+		"mass": 0.6,
+		"size_m": [
+			0.04,
+			0.03,
+			0.24
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/nippers"
+	},
+	"care-spa-rasp": {
+		"name": "Spa Hoof Rasp",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "Levels a lifted hoof after trimming. It belongs to the farrier station at Aloe and Lotus's spa and stays there. (Mare Care)",
+		"mass": 0.4,
+		"size_m": [
+			0.036,
+			0.03,
+			0.27
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/rasp"
+	},
+	"care-spa-hammer": {
+		"name": "Spa Farrier's Hammer",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "Drives the nails that hold a horseshoe on, and resets loose shoes. It belongs to the farrier station at Aloe and Lotus's spa and stays there. (Mare Care)",
+		"mass": 0.5,
+		"size_m": [
+			0.026,
+			0.07,
+			0.24
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/hammer"
+	},
+	"care-spa-hoof-oil": {
+		"name": "Spa Hoof Oil",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "Work it into a lifted hoof and it shines. It belongs to the farrier station at Aloe and Lotus's spa and stays there. (Mare Care)",
+		"mass": 0.2,
+		"size_m": [
+			0.05,
+			0.05,
+			0.18
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/hoof_oil"
+	},
+	"care-spa-shoe-steel": {
+		"name": "Spa Steel Horseshoes",
+		"category": "grooming",
+		"stack": 1,
+		"consume": false,
+		"drink": false,
+		"container": "",
+		"description": "A set of steel horseshoes. Fit one to a lifted, trimmed hoof, then nail it on with the farrier's hammer. It belongs to the farrier station at Aloe and Lotus's spa and stays there. (Mare Care)",
+		"mass": 0.3,
+		"size_m": [
+			0.11,
+			0.01,
+			0.12
+		],
+		"price_bits": 0,
+		"model": "../../../mods/mare_care/farrier/models/shoe_steel"
 	}
 }

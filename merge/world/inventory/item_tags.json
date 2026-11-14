@@ -32,6 +32,24 @@
 		],
 		"food:care-shoe-rainbow": [
 			"tool"
+		],
+		"food:care-spa-hoof-pick": [
+			"tool"
+		],
+		"food:care-spa-nippers": [
+			"tool"
+		],
+		"food:care-spa-rasp": [
+			"tool"
+		],
+		"food:care-spa-hammer": [
+			"tool"
+		],
+		"food:care-spa-hoof-oil": [
+			"tool"
+		],
+		"food:care-spa-shoe-steel": [
+			"tool"
 		]
 	}
 }
