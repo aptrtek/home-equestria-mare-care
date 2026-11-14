@@ -1,6 +1,13 @@
 extends Node
 ## A farrier station at Aloe and Lotus's spa: the last stop of a visit, where the player picks out,
-## trims, shoes and oils a client's hooves with Mare Care's own tools.
+## trims, shoes and oils a client's hooves, with the station's own tools or their own.
+##
+## The station's tools lie on its tool bench: a hoof pick, nippers, rasp, hammer, hoof oil and a set
+## of steel shoes (items "food:care-spa-*", which farrier.gd treats like the player's own). They
+## belong to the spa, the way its hoof file belongs to the counter (spa_hands.gd _keep_file_home):
+## exactly one of each, and once a second any that left the spa go back on the bench. Walk out with
+## one in hand or in the briefcase and it goes back too. They don't count against the Tools
+## switches, so the station works with every one of the player's own tools switched off.
 ##
 ## The spa (world/minigames/spa/spa_customers.gd) is the game's, and it stays unchanged. It keeps
 ## owning each client (her navigator lease, the romance firewall, interruptions, leaving); this
@@ -35,7 +42,20 @@ const LEAVING := ["to_door_in", "to_door_out"]
 const STATION := Vector3(1.9, 0.36, -3.2)
 const FACING := Vector3(0, 0, -1)
 const MAT_SIZE := Vector3(1.0, 0.012, 2.0)
-const CADDY_AT := Vector3(1.0, 0.36, -3.85)
+## The tool bench: west of the mat, against the wall, running along her side. No collision, so it
+## never changes anypony's way through the nook.
+const BENCH_AT := Vector3(0.98, 0.36, -3.35)
+const BENCH_TOP := Vector3(0.32, 0.03, 0.74)
+const BENCH_HEIGHT := 0.55
+## The station's tools: item id, and where along the bench (venue z) it lies. Each lies flat across
+## the bench, working end toward the wall and handle toward the mat.
+const BENCH_TOOLS := [
+	["food:care-spa-hoof-pick", -3.06], ["food:care-spa-nippers", -3.17], ["food:care-spa-rasp", -3.29],
+	["food:care-spa-hammer", -3.41], ["food:care-spa-hoof-oil", -3.53], ["food:care-spa-shoe-steel", -3.64],
+]
+const TOOLS_HOME_SECONDS := 1.0
+## Away from the spa further than this, the bench is restocked only once the player comes back.
+const RESTOCK_REACH := 30.0
 ## Walked off the mat further than this (a chat, a bump), she walks back.
 const DRIFT := 0.6
 const TRAVEL_SECONDS := 120.0
@@ -43,8 +63,6 @@ const TRAVEL_SECONDS := 120.0
 ## keeps her this much longer.
 const PATIENCE := 300.0
 const CHECK_SECONDS := 0.25
-## Jobs that bring a client to the station, and the tools each one needs switched on.
-const JOB_TOOLS := {"pick": ["hoof_pick"], "trim": ["nippers", "rasp"], "shoe": ["hammer"], "oil": ["hoof_oil"]}
 const JOB_WORDS := {"pick": "picking", "trim": "a trim", "shoe": "a shoe reset", "oil": "oil"}
 
 var mod_id := "mare_care"
@@ -54,6 +72,7 @@ var _owner_id := ""
 var _taken := {}
 var _prop: Node3D
 var _check := 0.0
+var _tools_clock := 0.0
 
 
 func _ready() -> void:
@@ -121,15 +140,12 @@ func _on_arrived(pony_id: String, _display_name: String) -> void:
 	print("[mare_care] %s will see the farrier at the spa (%s)" % [pony_id, ", ".join(jobs)])
 
 
-## The jobs due on any of her hooves whose tools the player has.
+## The jobs due on any of her hooves (the station has a tool for every one).
 func _wanted(pony_id: String, with_trim: bool) -> Array:
 	var out := []
 	var hooves := CARE.hooves(mod_id, pony_id)
 	for job: String in ["pick", "trim", "shoe", "oil"]:
 		if job == "trim" and not with_trim: continue
-		var tools_on := true
-		for tool: String in JOB_TOOLS[job]: tools_on = tools_on and CARE.tool_on(tool)
-		if not tools_on: continue
 		for leg: String in HOOVES.LEGS:
 			if CARE.due(hooves.get(leg, {}), job):
 				out.append(job); break
@@ -143,6 +159,7 @@ func _physics_process(delta: float) -> void:
 		_spa = null
 		return
 	_build_prop()
+	_keep_tools_home(delta)
 	var visits: Dictionary = _spa._visits
 	# Every frame: a client whose next stop is the station is taken over before the spa's next
 	# tick, which would otherwise run her last phase again (raise a filed hoof, hop off the table
@@ -293,7 +310,7 @@ func _settle_departures() -> void:
 
 # ---------------------------------------------------------------- the station itself
 
-## A rubber mat where she stands and a farrier's caddy with the tools in it, in the venue's space.
+## A rubber mat where she stands and a tool bench beside it, in the venue's space.
 func _build_prop() -> void:
 	if is_instance_valid(_prop): return
 	var venue: Node3D = _spa.get("_venue") as Node3D
@@ -318,46 +335,147 @@ func _build_prop() -> void:
 	trim.material_override = _material(Color("c9a46a"), 0.8)
 	trim.position = STATION + Vector3.UP * MAT_SIZE.y * 0.3
 	_prop.add_child(trim)
-	_prop.add_child(_caddy())
+	_prop.add_child(_bench())
 
 
-## An open wooden tool box with a handle, the hammer, rasp, nippers and pick standing in it.
-func _caddy() -> Node3D:
-	var caddy := Node3D.new()
-	caddy.name = "Caddy"
-	caddy.position = CADDY_AT
-	caddy.rotation.y = deg_to_rad(20.0)
+## A small wooden tool bench: a top on four legs, with a lower shelf.
+func _bench() -> Node3D:
+	var bench := Node3D.new()
+	bench.name = "ToolBench"
+	bench.position = BENCH_AT
 	var wood := _material(MODELS.WOOD, 0.8)
-	var size := Vector3(0.46, 0.16, 0.24)
-	for part: Array in [
-			[Vector3(size.x, 0.015, size.z), Vector3(0, 0.0075, 0)],
-			[Vector3(size.x, size.y, 0.015), Vector3(0, size.y * 0.5, size.z * 0.5)],
-			[Vector3(size.x, size.y, 0.015), Vector3(0, size.y * 0.5, -size.z * 0.5)],
-			[Vector3(0.015, size.y + 0.12, size.z), Vector3(size.x * 0.5, (size.y + 0.12) * 0.5, 0)],
-			[Vector3(0.015, size.y + 0.12, size.z), Vector3(-size.x * 0.5, (size.y + 0.12) * 0.5, 0)]]:
+	var dark := _material(MODELS.WOOD.darkened(0.25), 0.85)
+	var parts := [[BENCH_TOP, Vector3(0, BENCH_HEIGHT - BENCH_TOP.y * 0.5, 0), wood],
+		[Vector3(BENCH_TOP.x - 0.06, 0.02, BENCH_TOP.z - 0.08), Vector3(0, 0.16, 0), dark]]
+	var leg := Vector3(0.04, BENCH_HEIGHT - BENCH_TOP.y, 0.04)
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			parts.append([leg, Vector3(sx * (BENCH_TOP.x * 0.5 - 0.03), leg.y * 0.5, sz * (BENCH_TOP.z * 0.5 - 0.03)), dark])
+	for part: Array in parts:
 		var board := MeshInstance3D.new()
 		var mesh := BoxMesh.new(); mesh.size = part[0]
 		board.mesh = mesh
-		board.material_override = wood
+		board.material_override = part[2]
 		board.position = part[1]
-		caddy.add_child(board)
-	var handle := MeshInstance3D.new()
-	var bar := CylinderMesh.new(); bar.top_radius = 0.012; bar.bottom_radius = 0.012; bar.height = size.x
-	handle.mesh = bar
-	handle.material_override = wood
-	handle.rotation.z = PI * 0.5
-	handle.position = Vector3(0, size.y + 0.1, 0)
-	caddy.add_child(handle)
-	# Handles down in the box, working ends up (the models hold their grip at the origin, the
-	# working end toward -Z).
-	var x := -0.16
-	for kind: String in ["hammer", "rasp", "nippers", "hoof_pick"]:
-		var tool := MODELS.build(kind)
-		tool.rotation = Vector3(PI * 0.5 - 0.25, 0.0, 0.0)
-		tool.position = Vector3(x, 0.03, -0.04 if kind in ["rasp", "hoof_pick"] else 0.04)
-		caddy.add_child(tool)
-		x += 0.105
-	return caddy
+		bench.add_child(board)
+	return bench
+
+
+# ---------------------------------------------------------------- the station's tools
+
+## Where a station tool lies on the bench, in world space: flat across the top, working end (the
+## models' -Z) toward the wall, handle toward the mat.
+func _tool_rest(z: float) -> Transform3D:
+	var local := Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(BENCH_AT.x, BENCH_AT.y + BENCH_HEIGHT + 0.015, z))
+	return (_spa.call("venue_transform") as Transform3D) * local
+
+
+## Once a second, the spa's hoof file rule (spa_hands.gd _keep_file_home) for each station tool:
+## one of each, kept at the spa. A tool lying outside the spa goes back on the bench; with the
+## player outside, one in a hand or in the briefcase does too; a missing one is laid again. With the
+## station switched off they are all put away.
+func _keep_tools_home(delta: float) -> void:
+	_tools_clock -= delta
+	if _tools_clock > 0.0: return
+	_tools_clock = TOOLS_HOME_SECONDS
+	var game: Node = Mods.game
+	var inventory: Node = game.get("inventory") as Node if is_instance_valid(game) else null
+	var venue: Node3D = _spa.get("_venue") as Node3D
+	if not is_instance_valid(inventory) or not is_instance_valid(venue) or not venue.has_method("is_inside"): return
+	var store: Variant = inventory.get("inventory")
+	var camera: Node3D = inventory.get("camera") as Node3D
+	var held: Variant = inventory.get("held")
+	var loose: Variant = inventory.get("loose")
+	if store == null or not is_instance_valid(camera) or not held is Dictionary or not loose is Dictionary: return
+	if not inventory.has_method("spawn_owned_drop") or not store.has_method("discard"): return
+	if not CARE.spa_farrier:
+		_put_tools_away(inventory, store)
+		return
+	var player_out: bool = not bool(venue.call("is_inside", camera.global_position))
+	var far := camera.global_position.distance_squared_to(venue.global_position) > RESTOCK_REACH * RESTOCK_REACH
+	for entry: Array in BENCH_TOOLS:
+		var id := str(entry[0])
+		var rest := _tool_rest(float(entry[1]))
+		var home: RigidBody3D = null
+		for token: Variant in (loose as Dictionary).keys():
+			var item: RigidBody3D = (loose as Dictionary)[token] as RigidBody3D
+			if not is_instance_valid(item) or item in (held as Dictionary).values() or str(item.get_meta("item_id", "")) != id: continue
+			if bool(venue.call("is_inside", item.global_position)) and home == null: home = item
+			else: _to_bench(item, str(token), rest, store)
+		if player_out:
+			for side: Variant in (held as Dictionary).keys():
+				var in_hand: Variant = (held as Dictionary)[side]
+				if is_instance_valid(in_hand) and str((in_hand as Node).get_meta("item_id", "")) == id: _take_out_of_hand(inventory, str(side), store)
+			store.discard(id)
+			if far: continue
+		if home != null or _held_or_loose(held, loose, id): continue
+		# A loaned tool with no body in the world (out of the case but nowhere to be found): its loan
+		# ends, and a fresh one goes on the bench.
+		if store.get("loans") is Dictionary:
+			var lost: Array[String] = []
+			for token: Variant in (store.loans as Dictionary).keys():
+				var loan: Dictionary = store.loans[token]
+				if str(loan.get("id", "")) == id and not loan.get("equipped", false) and not (loose as Dictionary).has(token): lost.append(str(token))
+			for token: String in lost: store.consume(token)
+		# Stashed in the briefcase inside the spa: still the player's to take out again.
+		if _in_case(store, id): continue
+		var spawned: RigidBody3D = inventory.call("spawn_owned_drop", id, rest)
+		if spawned != null: spawned.freeze = true
+
+
+func _held_or_loose(held: Dictionary, loose: Dictionary, id: String) -> bool:
+	for item: Variant in loose.values():
+		if is_instance_valid(item) and str((item as Node).get_meta("item_id", "")) == id: return true
+	for item: Variant in held.values():
+		if is_instance_valid(item) and str((item as Node).get_meta("item_id", "")) == id: return true
+	return false
+
+
+func _in_case(store: Variant, id: String) -> bool:
+	for slot: Variant in store.get("slots"):
+		if slot is Dictionary and not (slot as Dictionary).is_empty() and str(slot.get("id", "")) == id and int(slot.get("count", 0)) > 0: return true
+	return false
+
+
+func _to_bench(item: RigidBody3D, token: String, rest: Transform3D, store: Variant) -> void:
+	item.linear_velocity = Vector3.ZERO; item.angular_velocity = Vector3.ZERO
+	item.global_transform = rest
+	item.freeze = true
+	if store.has_method("update_drops"): store.update_drops({token: rest})
+
+
+## The tool leaves the hand and the case without a drop (spa_hands.gd _take_out_of_hand); the next
+## check lays a fresh one on the bench.
+func _take_out_of_hand(inventory: Node, side: String, store: Variant) -> void:
+	var held: Dictionary = inventory.get("held")
+	var item: RigidBody3D = held.get(side) as RigidBody3D
+	if item == null: return
+	var token := str(item.get_meta("token", ""))
+	if not store.consume(token): return
+	if inventory.has_method("_unglow"): inventory.call("_unglow", item)
+	held.erase(side)
+	(inventory.get("loose") as Dictionary).erase(token)
+	for key: String in ["_track", "_eat_time"]:
+		if inventory.get(key) is Dictionary: (inventory.get(key) as Dictionary).erase(side)
+	if inventory.has_method("_claim"): inventory.call("_claim", side, false)
+	item.queue_free()
+	if inventory.has_method("_refresh_holding"): inventory.call("_refresh_holding")
+
+
+## The station switched off: its tools leave the world and the briefcase (one in a hand goes once it
+## is put away, or the player leaves the spa).
+func _put_tools_away(inventory: Node, store: Variant) -> void:
+	var held: Dictionary = inventory.get("held")
+	var loose: Dictionary = inventory.get("loose")
+	for entry: Array in BENCH_TOOLS:
+		var id := str(entry[0])
+		for token: Variant in loose.keys():
+			var item: Variant = loose[token]
+			if not is_instance_valid(item) or item in held.values() or str((item as Node).get_meta("item_id", "")) != id: continue
+			if store.consume(str(token)):
+				loose.erase(token)
+				(item as Node).queue_free()
+		store.discard(id)
 
 
 static func _material(color: Color, roughness: float) -> StandardMaterial3D:

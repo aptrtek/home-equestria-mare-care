@@ -36,6 +36,9 @@ const TOOLS := {
 	"food:care-hammer": "hammer", "food:care-hoof-oil": "hoof_oil",
 	"food:care-shoe-steel": "shoe_steel", "food:care-shoe-silver": "shoe_silver",
 	"food:care-shoe-gold": "shoe_gold", "food:care-shoe-rainbow": "shoe_rainbow",
+	# The spa farrier station's own set, kept in its toolbox (spa_station.gd); they work the same.
+	"food:care-spa-hoof-pick": "hoof_pick", "food:care-spa-nippers": "nippers", "food:care-spa-rasp": "rasp",
+	"food:care-spa-hammer": "hammer", "food:care-spa-hoof-oil": "hoof_oil", "food:care-spa-shoe-steel": "shoe_steel",
 }
 ## A hoof massage: seconds of slow rubbing on a lifted hoof, empty-handed. Grown mares only.
 const MASSAGE_SECONDS := 10.0
