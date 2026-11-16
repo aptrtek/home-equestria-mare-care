@@ -116,7 +116,9 @@ static func load_settings(mod_id: String) -> void:
 	for tool: Array in TOOLS:
 		if config.has_section_key("tools", str(tool[0])):
 			_tools[tool[0]] = bool(config.get_value("tools", str(tool[0])))
-	if not loaded:
+	# Write the file back whenever it isn't exactly what this version keeps: missing (first run),
+	# from an older version without the newer settings, or holding a value that was out of range.
+	if not loaded or _outdated(config):
 		save_settings(mod_id)
 	print("[mare_care] settings: hooves get dirty %s, upkeep days %s, pay %s, hoof model %s, frog %s, sparkle %s (%s min)  (%s)" % [
 		dirt_enabled, str(_days), pay_enabled, hoof_model, show_frog, sparkle_on, sparkle_minutes, ProjectSettings.globalize_path(path)])
@@ -124,6 +126,25 @@ static func load_settings(mod_id: String) -> void:
 
 ## Writes every setting back to settings.cfg.
 static func save_settings(mod_id: String) -> void:
+	var error := _as_config().save(_path(mod_id))
+	if error != OK: push_warning("[mare_care] could not save %s (error %d)" % [ProjectSettings.globalize_path(_path(mod_id)), error])
+
+
+## True when `loaded` lacks a setting, or holds a different value, than saving now would write.
+static func _outdated(loaded: ConfigFile) -> bool:
+	var current := _as_config()
+	for section: String in current.get_sections():
+		for key: String in current.get_section_keys(section):
+			if not loaded.has_section_key(section, key): return true
+			var was: Variant = loaded.get_value(section, key)
+			var now: Variant = current.get_value(section, key)
+			# A hand-edited 1 for true, or 7 for 7.0, is rewritten in the form this saves.
+			if typeof(was) != typeof(now) or was != now: return true
+	return false
+
+
+## Every setting as settings.cfg holds it.
+static func _as_config() -> ConfigFile:
 	var config := ConfigFile.new()
 	for job: String in JOBS:
 		config.set_value("upkeep", job + "_days", days(job))
@@ -141,7 +162,7 @@ static func save_settings(mod_id: String) -> void:
 	config.set_value("brushing", "hoof_sparkle_minutes", hoof_sparkle_minutes)
 	for tool: Array in TOOLS:
 		if _tools.has(tool[0]): config.set_value("tools", str(tool[0]), bool(_tools[tool[0]]))
-	config.save(_path(mod_id))
+	return config
 
 
 static func reset_settings(mod_id: String) -> void:
